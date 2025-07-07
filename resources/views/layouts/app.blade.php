@@ -50,21 +50,21 @@
         <li>
           <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="light" aria-pressed="false">
             <svg class="bi me-2 opacity-50" width="1em" height="1em"><use href="#sun-fill"></use></svg>
-            Light
+            Claro
             <svg class="bi ms-auto d-none" width="1em" height="1em"><use href="#check2"></use></svg>
           </button>
         </li>
         <li>
           <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark" aria-pressed="false">
             <svg class="bi me-2 opacity-50" width="1em" height="1em"><use href="#moon-stars-fill"></use></svg>
-            Dark
+            Obscuro
             <svg class="bi ms-auto d-none" width="1em" height="1em"><use href="#check2"></use></svg>
           </button>
         </li>
         <li>
           <button type="button" class="dropdown-item d-flex align-items-center active" data-bs-theme-value="auto" aria-pressed="true">
             <svg class="bi me-2 opacity-50" width="1em" height="1em"><use href="#circle-half"></use></svg>
-            
+            Automatico
             <svg class="bi ms-auto d-none" width="1em" height="1em"><use href="#check2"></use></svg>
           </button>
         </li>
@@ -164,9 +164,9 @@
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="#">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('diagrams.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark"/></svg>
-                Orders
+                Diagramas
               </a>
             </li>
             <li class="nav-item">
@@ -175,24 +175,11 @@
                 Products
               </a>
             </li>
-            @role('admin')
-              <li class="nav-item">
-                <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.users.pending') }}">
-                  <svg class="bi"><use xlink:href="#people"/></svg>
-                    Panel de Administración
-                </a>
-              </li>
-              <li class="nav-item">
-                <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.manage_users') }}">
-                  <svg class="bi"><use xlink:href="#people"/></svg>
-                    Panel de Administración
-                </a>
-              </li>
-            @endrole
+
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="#">
+              <a class="nav-link d-flex align-items-center gap-2"href="{{ route('templates.index') }}">
                 <svg class="bi"><use xlink:href="#graph-up"/></svg>
-                Reports
+                plantillas
               </a>
             </li>
             <li class="nav-item">
@@ -236,6 +223,38 @@
             </li>
           </ul>
 
+          <hr class="my-3">
+          @role('admin')
+          <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
+            <span>Saved reports</span>
+          </h6>
+          <ul class="nav flex-column mb-auto">
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.users.pending') }}">
+                <svg class="bi"><use xlink:href="#people"/></svg>
+                  Panel de Administración
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.diagrams.index') }}">
+                <svg class="bi"><use xlink:href="#people"/></svg>
+                admin.diagrams.restore
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.manage_users') }}">
+                <svg class="bi"><use xlink:href="#people"/></svg>
+                  manejar usuarios
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.templates.index') }}">
+                <svg class="bi"><use xlink:href="#people"/></svg>
+                  manejar plantillas
+              </a>
+            </li>
+          </ul>
+          @endrole
           <hr class="my-3">
 
           <ul class="nav flex-column mb-auto">
