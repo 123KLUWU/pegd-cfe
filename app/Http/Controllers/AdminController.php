@@ -67,7 +67,7 @@ class AdminController extends Controller
             activity()
                 ->performedOn($user)
                 ->causedBy(Auth()->user())
-                ->event('user_rejected')
+                ->event('user_Rechazado')
                 ->log('rechazó/desautorizó la cuenta del usuario ' . $user->name . ' (RPE: ' . $user->rpe . ').');
 
         });
@@ -86,7 +86,7 @@ class AdminController extends Controller
             activity()
                 ->performedOn($user)
                 ->causedBy(Auth()->user())
-                ->event('user_rejected')
+                ->event('user_Rechazado')
                 ->log('rechazó/desautorizó la cuenta del usuario ' . $user->name . ' (RPE: ' . $user->rpe . ').');
 
         });

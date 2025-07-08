@@ -13,6 +13,30 @@ use App\Http\Controllers\DocumentGenerationController; // Para la lógica de gen
 use App\Http\Controllers\Admin\TemplateController as AdminTemplateController; // Alias para evitar conflicto
 use App\Http\Controllers\DiagramController;
 use App\Http\Controllers\Admin\DiagramController as AdminDiagramController; // Alias
+use App\Http\Controllers\Admin\UserController as AdminUserController; // Alias para evitar conflicto de nombres
+
+// Rutas de Administración de Usuarios
+
+Route::middleware(['auth', 'role:admin|permission:manage users'])->prefix('admin')->group(function () {
+    // Usamos Route::resource para las acciones CRUD básicas
+    Route::resource('users', AdminUserController::class);
+
+    // Rutas adicionales para soft delete (restore, force-delete)
+    // El 'destroy' del resource ya maneja el soft delete por defecto.
+    Route::post('users/{id}/restore', [AdminUserController::class, 'restore'])->name('admin.users.restore');
+    Route::delete('users/{id}/force-delete', [AdminUserController::class, 'forceDelete'])->name('admin.users.force_delete');
+
+    // Rutas para aprobar y rechazar usuarios (si no están en el LoginController)
+    // Se pueden llamar desde el listado de usuarios
+    Route::post('users/{user}/approve', [AdminUserController::class, 'approveUser'])->name('admin.users.approve');
+    Route::post('users/{user}/reject', [AdminUserController::class, 'rejectUser'])->name('admin.users.reject');
+    
+
+
+    Route::get('/users/all', [AdminController::class, 'manageUsers'])->name('admin.manage_users');
+});
+
+Route::get('/users/pending', [AdminController::class, 'showPendingUsers'])->name('admin.users.pending');
 
 Route::middleware(['auth', 'role:admin|permission:manage diagrams'])->prefix('admin')->group(function () {
     // Rutas de recurso para la gestión de diagramas/manuales (CRUD)
@@ -94,21 +118,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/documents/generated-success', [DocumentGenerationController::class, 'showGeneratedSuccess'])->name('documents.generated.success');
 });
 
-// Ruta para mostrar usuarios pendientes
-Route::get('/users/pending', [AdminController::class, 'showPendingUsers'])->name('admin.users.pending');
-
-Route::get('/users/all', [AdminController::class, 'manageUsers'])->name('admin.manage_users');
-
-    // Ruta para aprobar un usuario (Usamos el ID del usuario en la URL)
-    // El 'User $user' en el método del controlador automáticamente busca el usuario por el ID
-Route::post('/users/{user}/approve', [AdminController::class, 'approveUser'])->name('admin.users.approve');
-
-    // Ruta opcional para rechazar un usuario
-Route::post('/users/{user}/reject', [AdminController::class, 'rejectUser'])->name('admin.users.reject');
-
-// ruta para google sheets
-Route::get('/generate-report', [SheetsController::class, 'generateReport'])->name('generate.report');
-//rutas para configuracion google cloud
+/**
+ * 
+ * rutas para configuracion google cloud 
+ * 
+ */
 
 // Ruta para iniciar el proceso de autenticación de Google
 Route::get('/google/auth', function (GoogleDriveService $googleService) {
