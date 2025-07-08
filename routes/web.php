@@ -70,9 +70,13 @@ Route::middleware(['auth', 'permission:view diagrams'])->group(function () {
     Route::get('/diagrams/file/{diagram}', [DiagramController::class, 'serveFile'])->name('diagrams.serve_file'); // URL para el archivo real
 });
 Route::get('/', function () {
-    return view('welcome');
+    // Si el usuario ya está autenticado, redirige al dashboard
+    if (Auth::check()) {
+        return redirect()->route('home');
+    }
+    // Si no, redirige al login
+    return redirect()->route('login');
 });
-
 Auth::routes();
 
 Route::get('/home', [HomeController::class, 'index'])->name('home');

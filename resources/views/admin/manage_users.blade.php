@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container">
-    <h1>Usuarios Pendientes de Aprobación</h1>
+    <h1>Lista de todos los usuarios</h1>
 
     @if (session('success'))
         <div class="alert alert-success">

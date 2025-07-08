@@ -59,7 +59,6 @@
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>ID</th>
                 <th>Nombre</th>
                 <th>RPE</th>
                 <th>Email</th>
@@ -72,7 +71,7 @@
         <tbody>
             @forelse ($users as $user)
                 <tr>
-                    <td>{{ $user->id }}</td>
+
                     <td>{{ $user->name }}</td>
                     <td>{{ $user->rpe }}</td>
                     <td>{{ $user->email ?? 'N/A' }}</td>
