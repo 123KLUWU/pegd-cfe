@@ -251,39 +251,6 @@
           </ul>
           @endrole
           <hr class="my-3">
-          @role('admin')
-          <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
-            <span>Saved reports</span>
-          </h6>
-          <ul class="nav flex-column mb-auto">
-            <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.users.pending') }}">
-                <svg class="bi"><use xlink:href="#people"/></svg>
-                  Panel de Administración
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.diagrams.index') }}">
-                <svg class="bi"><use xlink:href="#people"/></svg>
-                admin.diagrams.restore
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.manage_users') }}">
-                <svg class="bi"><use xlink:href="#people"/></svg>
-                  manejar usuarios
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.templates.index') }}">
-                <svg class="bi"><use xlink:href="#people"/></svg>
-                  manejar plantillas
-              </a>
-            </li>
-          </ul>
-          @endrole
-          <hr class="my-3">
-
           <ul class="nav flex-column mb-auto">
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="#">
