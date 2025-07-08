@@ -33,6 +33,6 @@ class TemplateController extends Controller
         $templates = Template::where('is_active', true)->get();
 
         // Retorna la vista 'templates.index' y le pasa las plantillas.
-        return view('test', compact('templates'));
+        return view('templates.index', compact('templates'));
     }
 }

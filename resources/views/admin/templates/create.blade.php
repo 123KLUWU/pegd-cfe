@@ -79,7 +79,7 @@
                 <div class="col-5">
                     <input type="text" name="dynamic_values[]" class="form-control" placeholder="Valor / Ubicación">
                 </div>
-            v    <div class="col-2">
+                <div class="col-2">
                     <button type="button" class="btn btn-danger btn-sm remove-row-btn">X</button>
                 </div>
             </div>

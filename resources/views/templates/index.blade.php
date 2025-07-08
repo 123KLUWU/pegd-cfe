@@ -1,17 +1,15 @@
-{{-- resources/views/admin/templates/index.blade.php --}}
-@extends('layouts.app')
+{{-- resources/views/templates/index.blade.php --}}
+@extends('layouts.app') {{-- Asegúrate que este sea tu layout base principal --}}
 
-@section('title', 'Gestión de Plantillas (Admin)')
+@section('title', 'Menú de Plantillas')
 
 @section('content')
 <div class="container mt-5">
-    <h1>Gestión de Plantillas</h1>
+    <h1>Menú de Plantillas Disponibles</h1>
 
-    <a href="{{ route('admin.templates.create') }}" class="btn btn-success mb-3">Crear Nueva Plantilla</a>
-
-    @if (session('success'))
+    @if (session('status'))
         <div class="alert alert-success mt-3" role="alert">
-            {{ session('success') }}
+            {{ session('status') }}
         </div>
     @endif
     @if (session('error'))
@@ -20,69 +18,54 @@
         </div>
     @endif
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Google Drive ID</th>
-                <th>Activa</th>
-                <th>Creada Por</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($templates as $template)
-                <tr>
-                    <td>{{ $template->id }}</td>
-                    <td>{{ $template->name }}</td>
-                    <td>{{ ucfirst($template->type) }}</td>
-                    <td><a href="https://docs.google.com/{{ $template->type }}s/d/{{ $template->google_drive_id }}/edit" target="_blank">{{ Str::limit($template->google_drive_id, 15) }}</a></td>
-                    <td>
-                        @if($template->is_active)
-                            <span class="badge bg-success">Sí</span>
-                        @else
-                            <span class="badge bg-danger">No</span>
-                        @endif
-                    </td>
-                    <td>{{ $template->createdBy->name ?? 'N/A' }}</td>
-                    <td>
-                        @if ($template->trashed())
-                            <span class="badge bg-secondary">Eliminada</span>
-                        @else
-                            <span class="badge bg-primary">Activa</span>
-                        @endif
-                    </td>
-                    <td>
-                        <a href="{{ route('admin.templates.edit', $template->id) }}" class="btn btn-warning btn-sm">Editar</a>
-                        <a href="{{ route('admin.templates.prefilled-data.create', $template->id) }}" class="btn btn-info btn-sm">Gestionar Datos Prefill</a>
-                        
-                        @if (!$template->trashed())
-                            <form action="{{ route('admin.templates.delete', $template->id) }}" method="POST" class="d-inline">
+    <div class="row">
+        @forelse ($templates as $template)
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ $template->name }}</h5>
+                        <p class="card-text">{{ $template->description ?? 'Sin descripción.' }}</p>
+                        <p class="card-text"><small class="text-muted">Tipo: {{ ucfirst($template->type) }}</small></p>
+
+                        <div class="mt-3">
+                            {{-- OPCIÓN 1: Generar en Blanco --}}
+                            <form action="{{ route('documents.generate.blank') }}" method="POST" class="d-inline">
                                 @csrf
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar (soft delete) esta plantilla?')">Eliminar</button>
+                                <input type="hidden" name="template_id" value="{{ $template->id }}">
+                                <button type="submit" class="btn btn-primary btn-sm mb-2">Generar en Blanco</button>
                             </form>
-                        @else
-                            <form action="{{ route('admin.templates.restore', $template->id) }}" method="POST" class="d-inline">
+
+                            {{-- OPCIÓN 2: Generar Predeterminado --}}
+                            {{-- Si tienes múltiples formatos predefinidos por plantilla, aquí tendrías un <select> --}}
+                            <form action="{{ route('documents.generate.predefined') }}" method="POST" class="d-inline">
                                 @csrf
-                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('¿Estás seguro de restaurar esta plantilla?')">Restaurar</button>
+                                <input type="hidden" name="template_id" value="{{ $template->id }}">
+                                {{-- Si necesitas pasar un ID específico de formato predefinido: --}}
+                                {{-- <input type="hidden" name="predefined_format_id" value="ID_AQUI"> --}}
+                                <button type="submit" class="btn btn-info btn-sm mb-2">Generar Predeterminado</button>
                             </form>
-                            <form action="{{ route('admin.templates.force_delete', $template->id) }}" method="POST" class="d-inline">
-                                @csrf
-                                @method('DELETE') {{-- Método DELETE HTTP --}}
-                                <button type="submit" class="btn btn-dark btn-sm" onclick="return confirm('¡ADVERTENCIA! ¿Estás seguro de eliminar PERMANENTEMENTE esta plantilla? Romperá referencias.')">Borrar Perm.</button>
-                            </form>
-                        @endif
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="8">No hay plantillas registradas.</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+
+                            {{-- OPCIÓN 3: Personalizar (Lleva a un formulario de personalización) --}}
+                            <a href="{{ route('documents.customize.form', $template->id) }}" class="btn btn-secondary btn-sm mb-2">Personalizar</a>
+
+                            {{-- Opciones de Administrador (ejemplo) --}}
+                            @can('manage templates')
+                                <a href="{{ route('admin.templates.edit', $template->id) }}" class="btn btn-warning btn-sm mb-2">Editar Plantilla (Admin)</a>
+                                
+                                <form action="#" method="POST" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-danger btn-sm mb-2" onclick="return confirm('¿Estás seguro de eliminar esta plantilla?')">Eliminar (Admin)</button>
+                                </form>
+                            @endcan
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="col-12">
+                <p>No hay plantillas activas disponibles. ¡Crea algunas en el panel de administración!</p>
+            </div>
+        @endforelse
+    </div>
 </div>
 @endsection
