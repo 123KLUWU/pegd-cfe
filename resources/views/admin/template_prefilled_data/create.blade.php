@@ -42,7 +42,7 @@
                     <input type="text" name="dynamic_keys[]" class="form-control" placeholder="Clave Lógica" value="{{ $key }}">
                 </div>
                 <div class="col-5">
-                    <input type="text" name="dynamic_values[]" class="form-control" placeholder="Valor / Ubicación" value="{{ $value }}">
+                    <input type="text" name="dynamic_values[]" class="form-control" placeholder="Valor / Ubicación">
                 </div>
                 <div class="col-2">
                     <button type="button" class="btn btn-danger btn-sm remove-row-btn">X</button>
