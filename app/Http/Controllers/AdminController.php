@@ -9,10 +9,15 @@ use Spatie\Activitylog\Models\Activity;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Auth;
 
 class AdminController extends Controller
 {
-
+    public function __construct()
+    {
+        $this->middleware('auth');
+        $this->middleware('role:admin');
+    }
     // Método para mostrar las solicitudes de usuario pendientes
     public function showPendingUsers()
     {
@@ -21,9 +26,12 @@ class AdminController extends Controller
         return view('admin.pending_users', compact('pendingUsers'));
     }
 
-
-    // Método para cambiar el estado 'is_authorized' a true
-    // Laravel's Route Model Binding inyectará automáticamente la instancia de User
+    /**
+     * Aprobar la cuenta de un usuario pendiente y asignarle el rol 'employee'.
+     *
+     * @param User $user La instancia del usuario a aprobar (Route Model Binding).
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function approveUser(User $user)
     {
         // Usamos una transacción de base de datos para asegurar atomicidad
@@ -32,6 +40,11 @@ class AdminController extends Controller
             // 1. Cambiar el estado a true
             $user->status = 'Activo';
             $user->save();
+            
+            if (!$user->hasRole('admin')) { // <-- Verifica si ya no es admin
+                $user->assignRole('employee'); // <-- ¡Aquí se asigna el rol!
+            }
+
             activity()
             ->performedOn($user) // El usuario que fue aprobado (el sujeto)
             ->causedBy(Auth()->user()) // El administrador que aprobó (el causante)
@@ -54,7 +67,7 @@ class AdminController extends Controller
             activity()
                 ->performedOn($user)
                 ->causedBy(Auth()->user())
-                ->event('user_rejected')
+                ->event('user_Rechazado')
                 ->log('rechazó/desautorizó la cuenta del usuario ' . $user->name . ' (RPE: ' . $user->rpe . ').');
 
         });
@@ -73,7 +86,7 @@ class AdminController extends Controller
             activity()
                 ->performedOn($user)
                 ->causedBy(Auth()->user())
-                ->event('user_rejected')
+                ->event('user_Rechazado')
                 ->log('rechazó/desautorizó la cuenta del usuario ' . $user->name . ' (RPE: ' . $user->rpe . ').');
 
         });
