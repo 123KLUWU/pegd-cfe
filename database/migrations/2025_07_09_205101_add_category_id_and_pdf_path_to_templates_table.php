@@ -14,8 +14,9 @@ return new class extends Migration
         Schema::table('templates', function (Blueprint $table) {
             $table->foreignId('category_id')->nullable()->constrained('categories')->onDelete('set null')->after('type');
 
-            // Añadir pdf_file_path para la copia PDF de previsualización
+            // Añadir pdf_file_path para la copia PDF de previsualización y office
             $table->string('pdf_file_path')->nullable()->after('mapping_rules_json');
+            $table->string('office_file_path')->nullable()->after('pdf_file_path');
         });
     }
 

@@ -15,6 +15,7 @@ use App\Http\Controllers\DiagramController;
 use App\Http\Controllers\Admin\DiagramController as AdminDiagramController; // Alias
 use App\Http\Controllers\Admin\UserController as AdminUserController; // Alias para evitar conflicto de nombres
 use App\Http\Controllers\Admin\TemplatePrefilledDataController as AdminTemplatePrefilledDataController; // Alias
+use App\Http\Controllers\UserTemplateController;
 
 // Rutas de Administración de Usuarios
 
@@ -81,6 +82,15 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', [HomeController::class, 'index'])->name('home');
+
+Route::middleware(['auth'])->group(function () {
+    // ... tus otras rutas de usuario (templates.index, documents.generate.*, etc.) ...
+
+    // Rutas para servir/descargar copias de plantillas (accesibles por todos los autenticados)
+    // El parámetro {template} usará Route Model Binding
+    Route::get('templates/{template}/preview-pdf', [UserTemplateController::class, 'showPdfPreview'])->name('templates.show_pdf_preview');
+    Route::get('templates/{template}/download-office', [UserTemplateController::class, 'downloadOfficeFile'])->name('templates.download_office');
+});
 
 Route::middleware(['auth', 'role:admin|permission:manage templates'])->prefix('admin/templates')->group(function () {
     Route::get('/', [AdminTemplateController::class, 'index'])->name('admin.templates.index');

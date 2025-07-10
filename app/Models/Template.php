@@ -19,6 +19,7 @@ class Template extends Model
         'category_id',
         'mapping_rules_json',
         'pdf_file_path',
+        'office_file_path',
         'description',
         'is_active',
         'created_by_user_id',

@@ -27,8 +27,8 @@
             <label for="type" class="form-label">Tipo de Plantilla:</label>
             <select class="form-select @error('type') is-invalid @enderror" id="type" name="type" required>
                 <option value="">Selecciona un tipo</option>
-                <option value="docs" {{ old('type') == 'docs' ? 'selected' : '' }}>Google Docs</option>
-                <option value="sheets" {{ old('type') == 'sheets' ? 'selected' : '' }}>Google Sheets</option>
+                <option value="document" {{ old('type') == 'document' ? 'selected' : '' }}>Google Docs</option>
+                <option value="spreadsheets" {{ old('type') == 'spreadsheets' ? 'selected' : '' }}>Google spreadsheets</option>
             </select>
             @error('type')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>

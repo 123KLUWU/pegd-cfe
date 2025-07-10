@@ -31,8 +31,8 @@
                 <label for="type" class="form-label">Tipo:</label>
                 <select class="form-select" id="type" name="type">
                     <option value="">Todos</option>
-                    <option value="docs" {{ $selected_type == 'docs' ? 'selected' : '' }}>Google Docs</option>
-                    <option value="sheets" {{ $selected_type == 'sheets' ? 'selected' : '' }}>Google Sheets</option>
+                    <option value="document" {{ $selected_type == 'document' ? 'selected' : '' }}>Google Docs</option>
+                    <option value="spreadsheets" {{ $selected_type == 'spreadsheets' ? 'selected' : '' }}>Google spreadsheets</option>
                 </select>
             </div>
             <div class="col-md-2">

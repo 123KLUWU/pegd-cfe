@@ -40,7 +40,7 @@ class TemplateController extends Controller
             });
         }
         $filterType = $request->input('type');
-        if ($filterType && in_array($filterType, ['docs', 'sheets'])) {
+        if ($filterType && in_array($filterType, ['document', 'spreadsheets'])) {
             $query->where('type', $filterType);
         }
         $filterCategory = $request->input('category_id');
@@ -80,7 +80,7 @@ class TemplateController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:templates,name'],
-            'type' => ['required', 'in:docs,sheets'],
+            'type' => ['required', 'in:document,spreadsheets'],
             'category_id' => ['nullable', 'exists:categories,id'],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
@@ -167,7 +167,7 @@ class TemplateController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:templates,name,' . $template->id],
-            'type' => ['required', 'in:docs,sheets'],
+            'type' => ['required', 'in:document,spreadsheets'],
             'category_id' => ['nullable', 'exists:categories,id'],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
@@ -249,7 +249,7 @@ class TemplateController extends Controller
     /**
      * Sube un archivo local a Google Drive y retorna su ID.
      * @param \Illuminate\Http\UploadedFile $uploadedFile El archivo subido desde el Request.
-     * @param string $templateType 'docs' o 'sheets' para determinar el mimeType de Google.
+     * @param string $templateType 'document' o 'spreadsheets' para determinar el mimeType de Google.
      * @return string El ID del archivo subido en Google Drive.
      * @throws \Exception Si la subida falla.
      */
@@ -261,9 +261,9 @@ class TemplateController extends Controller
         $targetGoogleMimeType = null; // Default to no conversion
 
         // Determinar el MIME Type de Google para la conversión si aplica
-        if ($templateType === 'docs' && $originalMimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') { // .docx a Google Doc
+        if ($templateType === 'document' && $originalMimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') { // .docx a Google Doc
             $targetGoogleMimeType = 'application/vnd.google-apps.document';
-        } elseif ($templateType === 'sheets' && $originalMimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') { // .xlsx a Google Sheet
+        } elseif ($templateType === 'spreadsheets' && $originalMimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') { // .xlsx a Google Sheet
             $targetGoogleMimeType = 'application/vnd.google-apps.spreadsheet';
         }
         // Para PDF, se sube como PDF. Si quieres convertirlo a Google Doc/Sheet editable, es más complejo.
@@ -439,7 +439,7 @@ class TemplateController extends Controller
     /**
      * Helper: Verifica si un Google Drive ID es válido y accesible (Función 6).
      * @param string $googleDriveId
-     * @param string $type 'docs' o 'sheets'
+     * @param string $type 'document' o 'spreadsheets'
      * @throws \Exception Si el ID no es válido o no es accesible.
      */
     protected function testGoogleDriveLink(string $googleDriveId, string $type): void
@@ -447,11 +447,11 @@ class TemplateController extends Controller
         $driveService = $this->googleService->getDriveService();
         try {
             $file = $driveService->files->get($googleDriveId, ['fields' => 'mimeType,name']);
-            // Opcional: Verificar que el mimeType coincida con el tipo esperado (Docs/Sheets)
-            if ($type === 'docs' && $file->getMimeType() !== 'application/vnd.google-apps.document') {
+            // Opcional: Verificar que el mimeType coincida con el tipo esperado (document/spreadsheets)
+            if ($type === 'document' && $file->getMimeType() !== 'application/vnd.google-apps.document') {
                 throw new \Exception('El ID de Google Drive no corresponde a un Google Doc.');
             }
-            if ($type === 'sheets' && $file->getMimeType() !== 'application/vnd.google-apps.spreadsheet') {
+            if ($type === 'spreadsheets' && $file->getMimeType() !== 'application/vnd.google-apps.spreadsheet') {
                 throw new \Exception('El ID de Google Drive no corresponde a un Google Sheet.');
             }
             // Puedes añadir una comprobación de permisos si quieres que sea accesible públicamente
@@ -479,37 +479,61 @@ class TemplateController extends Controller
 
     /**
      * Helper: Genera una copia PDF de la plantilla y la guarda en el storage (Función 1).
+     * También genera una copia en formato Office nativo (DOCX/XLSX).
      * @param Template $template
      * @return void
      */
     protected function generateAndStorePdfPreview(Template $template): void
     {
         try {
-            // 1. Obtener el contenido del documento de Google Drive
             $driveService = $this->googleService->getDriveService();
-            $exportMimeType = ($template->type === 'docs') ? 'application/pdf' : 'application/pdf'; // Exportar ambos como PDF
+
+            // --- 1. Generar y Guardar Copia PDF ---
+            $pdfMimeType = 'application/pdf';
+            $pdfFileName = 'templates_pdf/' . $template->id . '.pdf';
 
             // Exportar el documento de Google Drive a PDF
-            $response = $driveService->files->export($template->google_drive_id, $exportMimeType, ['alt' => 'media']);
-            $pdfContent = $response->getBody()->getContents();
-
-            // 2. Guardar el PDF en el storage
-            $fileName = 'templates_pdf/' . $template->id . '.pdf';
-            Storage::disk('public')->put($fileName, $pdfContent);
-
-            // 3. Actualizar la ruta del PDF en la DB de la plantilla
-            $template->pdf_file_path = $fileName;
-            $template->save();
+            $pdfResponse = $driveService->files->export($template->google_drive_id, $pdfMimeType, ['alt' => 'media']);
+            $pdfContent = $pdfResponse->getBody()->getContents();
+            Storage::disk('public')->put($pdfFileName, $pdfContent);
+            $template->pdf_file_path = $pdfFileName; // Actualizar la ruta del PDF en la DB
 
             Log::info("PDF de previsualización generado y guardado para plantilla ID: {$template->id}");
+
+
+            // --- 2. Generar y Guardar Copia en Formato Office Nativo ---
+            $officeFileName = null;
+            $officeMimeType = null;
+
+            if ($template->type === 'document') {
+                $officeMimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'; // DOCX
+                $officeFileName = 'templates_office/' . $template->id . '.docx';
+            } elseif ($template->type === 'spreadsheets') {
+                $officeMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'; // XLSX
+                $officeFileName = 'templates_office/' . $template->id . '.xlsx';
+            }
+
+            if ($officeMimeType && $officeFileName) {
+                // Asegurarse de que la carpeta exista
+                Storage::disk('public')->makeDirectory('templates_office');
+
+                // Exportar el documento de Google Drive a formato Office
+                $officeResponse = $driveService->files->export($template->google_drive_id, $officeMimeType, ['alt' => 'media']);
+                $officeContent = $officeResponse->getBody()->getContents();
+                Storage::disk('public')->put($officeFileName, $officeContent);
+                $template->office_file_path = $officeFileName; // <-- Necesitas una columna 'office_file_path' en la tabla 'templates'
+
+                Log::info("Copia Office generada y guardada para plantilla ID: {$template->id}");
+            }
+
+            $template->save(); // Guardar los cambios de rutas de archivos en la DB
 
         } catch (\Google\Service\Exception $e) {
             $errorDetails = json_decode($e->getMessage(), true);
             $message = $errorDetails['error']['message'] ?? $e->getMessage();
-            Log::error("Error al generar PDF de previsualización para plantilla ID: {$template->id}: {$message}");
-            // No lanzar excepción para no detener el store/update principal, solo loggear
+            Log::error("Error al generar PDF/Office de previsualización para plantilla ID: {$template->id}: {$message}");
         } catch (\Exception $e) {
-            Log::error("Error inesperado al generar PDF de previsualización para plantilla ID: {$template->id}: {$e->getMessage()}");
+            Log::error("Error inesperado al generar PDF/Office de previsualización para plantilla ID: {$template->id}: {$e->getMessage()}");
         }
     }
     

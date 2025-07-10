@@ -54,7 +54,7 @@ class DocumentGenerationController extends Controller
             // 2. Prellenar datos (usando mapping_rules_json de la plantilla)
             $mappingRules = $template->mapping_rules_json; // JSON #1: Las reglas de mapeo de la plantilla
 
-            if ($template->type === 'docs') {
+            if ($template->type === 'document') {
                 $link = 'https://docs.google.com/document/d/';
                 $docsService = $this->googleService->getDocsService();
                 $requests = [];
@@ -72,13 +72,13 @@ class DocumentGenerationController extends Controller
                     $batchUpdateRequest = new BatchUpdateDocumentRequest(['requests' => $requests]);
                     $docsService->documents->batchUpdate($newGoogleDriveId, $batchUpdateRequest);
                 }
-            } elseif ($template->type === 'sheets') {
+            } elseif ($template->type === 'spreadsheets') {
                 $link = 'https://docs.google.com/spreadsheets/d/';
                 $sheetsService = $this->googleService->getSheetsService();
                 foreach ($mappingRules as $logicalKey => $cellAddress) {
                     if (isset($dataForFilling[$logicalKey])) {
                         $value = $dataForFilling[$logicalKey];
-                        // Asegúrate de que los valores para Sheets sean arrays de arrays
+                        // Asegúrate de que los valores para spreadsheets sean arrays de arrays
                         $valueForSheet = is_array($value) ? $value : [[(string) $value]];
 
                         $sheetsService->spreadsheets_values->update(

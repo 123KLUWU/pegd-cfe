@@ -44,6 +44,12 @@
             <a href="{{ route('admin.templates.edit', $template->id) }}" class="btn btn-warning me-2">Editar Plantilla</a>
             <a href="{{ route('admin.templates.duplicate', $template->id) }}" class="btn btn-secondary me-2">Duplicar Plantilla</a>
             <a href="{{ route('admin.templates.prefilled-data.create', $template->id) }}" class="btn btn-primary">Gestionar Datos Prefill</a>
+            @if($template->pdf_file_path)
+                <a href="{{ route('admin.templates.serve_pdf_preview', $template->id) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">Abrir PDF</a>
+            @endif
+            @if($template->office_file_path)
+                <a href="{{ route('templates.download_office', $template->id) }}" class="btn btn-success mt-2">Descargar {{ strtoupper($template->type) == 'DOCS' ? 'DOCX' : 'XLSX' }}</a>
+            @endif
         </div>
 
         <div class="col-md-6">
@@ -55,11 +61,12 @@
                 <div class="card-body">
                     @if($template->pdf_file_path)
                         <div class="embed-responsive embed-responsive-16by9" style="height: 400px;">
-                            {{-- ¡CAMBIO AQUÍ! Apuntar a la ruta de Laravel --}}
-                            <iframe src="{{ route('admin.templates.serve_pdf_preview', $template->id) }}" width="100%" height="100%" style="border:none;"></iframe>
+                            {{-- ¡CAMBIO AQUÍ! Apuntar a la nueva ruta pública --}}
+                            <iframe src="{{ route('templates.show_pdf_preview', $template->id) }}" width="100%" height="100%" style="border:none;"></iframe>
                         </div>
                         <p class="mt-2 text-center">
-                            <a href="{{ route('admin.templates.serve_pdf_preview', $template->id) }}" target="_blank" class="btn btn-sm btn-outline-primary">Abrir PDF en nueva pestaña</a>
+                            {{-- ¡CAMBIO AQUÍ! Apuntar a la nueva ruta pública --}}
+                            <a href="{{ route('templates.show_pdf_preview', $template->id) }}" target="_blank" class="btn btn-sm btn-outline-primary">Abrir PDF en nueva pestaña</a>
                         </p>
                     @else
                         <p class="text-warning">PDF de previsualización no disponible. Guarde/actualice la plantilla para generarlo.</p>
@@ -99,7 +106,7 @@
                     @forelse ($generatedDocs as $doc)
                         <li class="list-group-item">
                             <small class="text-muted">{{ $doc->created_at->format('d/m/Y H:i') }}</small><br>
-                            <a href="https://docs.google.com/{{ $doc->type }}s/d/{{ $doc->google_drive_id }}/edit" target="_blank">{{ $doc->title }}</a>
+                            <a href="https://docs.google.com/{{ $doc->type }}/d/{{ $doc->google_drive_id }}/edit" target="_blank">{{ $doc->title }}</a>
                             ({{ ucfirst($doc->type) }}, {{ ucfirst(str_replace('_', ' ', $doc->visibility_status)) }})
                         </li>
                     @empty
