@@ -39,15 +39,17 @@ class DocumentGenerationController extends Controller
      * @return string La URL del documento generado.
      * @throws \Exception Si ocurre un error durante la generación.
      */
-    protected function generateDocument(Template $template, array $dataForFilling, string $visibilityStatus = 'private_restricted'): string
+    protected function generateDocument(Template $template, array $dataForFilling, string $visibilityStatus = 'public_editable'): string
     {
         try {
             $driveService = $this->googleService->getDriveService();
             $newDocTitle = $template->name . ' - ' . Auth::user()->rpe . ' - ' . now()->format('YmdHis');
 
             // 1. Copiar la plantilla
-            $copy = new \Google\Service\Drive\DriveFile();
-            $copy->setName($newDocTitle);
+            $copy = new \Google\Service\Drive\DriveFile([
+                'name' => $newDocTitle,
+                'parents' => [env('GOOGLE_GENERATED_DOCS_FOLDER_ID')], // <-- ¡CAMBIO AQUÍ!
+            ]);
             $copiedFile = $driveService->files->copy($template->google_drive_id, $copy);
             $newGoogleDriveId = $copiedFile->getId();
 
@@ -160,7 +162,7 @@ class DocumentGenerationController extends Controller
 
         try {
             // Llama a la función helper de generación, sin datos específicos para prellenar
-            $docLink = $this->generateDocument($template, [], 'private_restricted'); // O 'public_viewable' si quieres que sea visible
+            $docLink = $this->generateDocument($template, [], 'public_editable'); // O 'public_viewable' si quieres que sea visible
             return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $template->name]);
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
@@ -225,7 +227,7 @@ class DocumentGenerationController extends Controller
         // --- FIN DE LA PREPARACIÓN ---
 
         try {
-            $docLink = $this->generateDocument($template, $dataForFilling, 'private_restricted');
+            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable');
             return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $template->name]);
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
@@ -274,7 +276,7 @@ class DocumentGenerationController extends Controller
         // --- FIN DE LA PREPARACIÓN ---
 
         try {
-            $docLink = $this->generateDocument($template, $dataForFilling, 'private_restricted'); // O 'public_editable'
+            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable'); // O 'public_editable'
             return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $template->name]);
         } catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
