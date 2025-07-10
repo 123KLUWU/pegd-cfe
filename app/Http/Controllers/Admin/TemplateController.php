@@ -411,4 +411,27 @@ class TemplateController extends Controller
             Log::error("Error inesperado al generar PDF de previsualización para plantilla ID: {$template->id}: {$e->getMessage()}");
         }
     }
+    
+     /**
+     * Sirve el archivo PDF de previsualización de una plantilla.
+     * Esta es la URL a la que apuntará el iframe en el panel de admin.
+     *
+     * @param Template $template
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
+    public function servePdfPreview(Template $template)
+    {
+        // Asegurarse de que el archivo PDF existe en el storage
+        if (!$template->pdf_file_path || !Storage::disk('public')->exists($template->pdf_file_path)) {
+            Log::error("PDF de previsualización no encontrado para plantilla ID: {$template->id}, Path: {$template->pdf_file_path}");
+            abort(404, 'PDF de previsualización no encontrado.');
+        }
+
+        // Obtiene la ruta física completa del archivo
+        $path = Storage::disk('public')->path($template->pdf_file_path);
+
+        // Retorna el archivo al navegador con las cabeceras correctas
+        // Laravel automáticamente establecerá el Content-Type adecuado (application/pdf)
+        return response()->file($path);
+    }
 }

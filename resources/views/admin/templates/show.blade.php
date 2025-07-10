@@ -55,10 +55,11 @@
                 <div class="card-body">
                     @if($template->pdf_file_path)
                         <div class="embed-responsive embed-responsive-16by9" style="height: 400px;">
-                            <iframe src="{{ asset('storage/' . $template->pdf_file_path) }}" width="100%" height="100%" style="border:none;"></iframe>
+                            {{-- ¡CAMBIO AQUÍ! Apuntar a la ruta de Laravel --}}
+                            <iframe src="{{ route('admin.templates.serve_pdf_preview', $template->id) }}" width="100%" height="100%" style="border:none;"></iframe>
                         </div>
                         <p class="mt-2 text-center">
-                            <a href="{{ asset('storage/' . $template->pdf_file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary">Abrir PDF en nueva pestaña</a>
+                            <a href="{{ route('admin.templates.serve_pdf_preview', $template->id) }}" target="_blank" class="btn btn-sm btn-outline-primary">Abrir PDF en nueva pestaña</a>
                         </p>
                     @else
                         <p class="text-warning">PDF de previsualización no disponible. Guarde/actualice la plantilla para generarlo.</p>

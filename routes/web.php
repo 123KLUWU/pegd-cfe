@@ -92,7 +92,7 @@ Route::middleware(['auth', 'role:admin|permission:manage templates'])->prefix('a
     Route::post('/{template}/delete', [AdminTemplateController::class, 'destroy'])->name('admin.templates.destroy'); // Usar destroy para soft delete
     Route::post('/{id}/restore', [AdminTemplateController::class, 'restore'])->name('admin.templates.restore');
     Route::delete('/{id}/force-delete', [AdminTemplateController::class, 'forceDelete'])->name('admin.templates.force_delete'); // Usar DELETE HTTP
-
+    Route::get('templates/{template}/preview-pdf', [AdminTemplateController::class, 'servePdfPreview'])->name('admin.templates.serve_pdf_preview');
     // Duplicar Plantilla (Función 5)
     Route::post('/{template}/duplicate', [AdminTemplateController::class, 'duplicate'])->name('admin.templates.duplicate');
 
