@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\TemplateController as AdminTemplateController; //
 use App\Http\Controllers\DiagramController;
 use App\Http\Controllers\Admin\DiagramController as AdminDiagramController; // Alias
 use App\Http\Controllers\Admin\UserController as AdminUserController; // Alias para evitar conflicto de nombres
+use App\Http\Controllers\Admin\TemplatePrefilledDataController as AdminTemplatePrefilledDataController; // Alias
 
 // Rutas de Administración de Usuarios
 
@@ -81,22 +82,27 @@ Auth::routes();
 
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 
-// Rutas de Administración de Plantillas
 Route::middleware(['auth', 'role:admin|permission:manage templates'])->prefix('admin/templates')->group(function () {
     Route::get('/', [AdminTemplateController::class, 'index'])->name('admin.templates.index');
     Route::get('/create', [AdminTemplateController::class, 'create'])->name('admin.templates.create');
     Route::post('/', [AdminTemplateController::class, 'store'])->name('admin.templates.store');
+    Route::get('/{template}/show', [AdminTemplateController::class, 'show'])->name('admin.templates.show'); // Nueva ruta show
     Route::get('/{template}/edit', [AdminTemplateController::class, 'edit'])->name('admin.templates.edit');
     Route::put('/{template}', [AdminTemplateController::class, 'update'])->name('admin.templates.update');
-    Route::post('/{template}/delete', [AdminTemplateController::class, 'delete'])->name('admin.templates.delete');
+    Route::post('/{template}/delete', [AdminTemplateController::class, 'destroy'])->name('admin.templates.destroy'); // Usar destroy para soft delete
     Route::post('/{id}/restore', [AdminTemplateController::class, 'restore'])->name('admin.templates.restore');
-    Route::delete('/{id}/force-delete', [AdminTemplateController::class, 'forceDelete'])->name('admin.templates.force_delete'); // Usa método DELETE HTTP
+    Route::delete('/{id}/force-delete', [AdminTemplateController::class, 'forceDelete'])->name('admin.templates.force_delete'); // Usar DELETE HTTP
+
+    // Duplicar Plantilla (Función 5)
+    Route::post('/{template}/duplicate', [AdminTemplateController::class, 'duplicate'])->name('admin.templates.duplicate');
+
+    // Rutas para gestionar datos prellenados asociados a una plantilla
     Route::prefix('{template}/prefilled-data')->group(function () {
-        Route::get('/create', [TemplatePrefilledDataController::class, 'create'])->name('admin.templates.prefilled-data.create');
-        Route::post('/', [TemplatePrefilledDataController::class, 'store'])->name('admin.templates.prefilled-data.store');
-        Route::get('/{prefilledData}/edit', [TemplatePrefilledDataController::class, 'edit'])->name('admin.templates.prefilled-data.edit');
-        Route::put('/{prefilledData}', [TemplatePrefilledDataController::class, 'update'])->name('admin.templates.prefilled-data.update');
-    
+        Route::get('/create', [AdminTemplatePrefilledDataController::class, 'create'])->name('admin.templates.prefilled-data.create');
+        Route::post('/', [AdminTemplatePrefilledDataController::class, 'store'])->name('admin.templates.prefilled-data.store');
+        Route::get('/{prefilledData}/edit', [AdminTemplatePrefilledDataController::class, 'edit'])->name('admin.templates.prefilled-data.edit');
+        Route::put('/{prefilledData}', [AdminTemplatePrefilledDataController::class, 'update'])->name('admin.templates.prefilled-data.update');
+        // ... otras rutas para index, show, delete de prefilled data ...
     });
 });
 

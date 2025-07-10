@@ -16,7 +16,7 @@
 
     <form action="{{ route('admin.templates.update', $template->id) }}" method="POST">
         @csrf
-        @method('PUT') {{-- Usa el método PUT para actualizaciones --}}
+        @method('PUT')
 
         <div class="mb-3">
             <label for="name" class="form-label">Nombre de la Plantilla:</label>
@@ -41,54 +41,62 @@
         </div>
 
         <div class="mb-3">
+            <label for="category_id" class="form-label">Categoría:</label>
+            <select class="form-select @error('category_id') is-invalid @enderror" id="category_id" name="category_id">
+                <option value="">Sin Categoría</option>
+                @foreach ($categories as $category)
+                    <option value="{{ $category->id }}" {{ old('category_id', $template->category_id) == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                @endforeach
+            </select>
+            @error('category_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+        </div>
+
+        <div class="mb-3">
             <label for="description" class="form-label">Descripción:</label>
             <textarea class="form-control @error('description') is-invalid @enderror" id="description" name="description" rows="3">{{ old('description', $template->description) }}</textarea>
             @error('description')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
 
-{{-- Dentro de tu formulario, donde antes tenías el textarea del JSON --}}
+        {{-- INICIO: CAMPOS DINÁMICOS PARA MAPPING_RULES_JSON --}}
+        <div class="mb-3">
+            <label class="form-label">Reglas de Mapeo (Clave Lógica: Ubicación en Plantilla):</label>
+            <div id="key-value-fields-container-mapping">
+                @php
+                    // Para editar: Obtener los datos existentes del mapping_rules_json
+                    $existingMappingRules = old('dynamic_keys', $template->mapping_rules_json ? $template->mapping_rules_json : []);
+                @endphp
 
-<div class="mb-3">
-    <label class="form-label">Reglas/Datos (Clave: Valor):</label>
-    <div id="key-value-fields-container">
-        {{-- Aquí se añadirán dinámicamente los pares clave-valor --}}
-
-        {{-- Ejemplo de un par inicial o si ya tienes datos --}}
-        @php
-            // Para editar: Convierte el JSON a un array de pares clave-valor
-            $existingData = isset($prefilledData) ? $prefilledData->data_json : (isset($template) ? $template->mapping_rules_json : []);
-            // En este punto, $existingData debería ser un array asociativo PHP (ej. ['rpe_empleado' => 'C8'])
-        @endphp
-
-        @forelse ($existingData as $key => $value)
-            <div class="row mb-2 key-value-row">
-                <div class="col-5">
-                    <input type="text" name="dynamic_keys[]" class="form-control" placeholder="Clave Lógica" value="{{ $key }}">
-                </div>
-                <div class="col-5">
-                    <input type="text" name="dynamic_values[]" class="form-control" placeholder="Valor / Ubicación" value="{{ $value }}">
-                </div>
-                <div class="col-2">
-                    <button type="button" class="btn btn-danger btn-sm remove-row-btn">X</button>
-                </div>
+                @forelse ($existingMappingRules as $key => $value)
+                    <div class="row mb-2 key-value-row">
+                        <div class="col-5">
+                            <input type="text" name="dynamic_keys[]" class="form-control" placeholder="Clave Lógica (ej. rpe_empleado)" value="{{ $key }}">
+                        </div>
+                        <div class="col-5">
+                            <input type="text" name="dynamic_values[]" class="form-control" placeholder="Ubicación (ej. C8 o )" value="{{ $value }}">
+                        </div>
+                        <div class="col-2">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn">X</button>
+                        </div>
+                    </div>
+                @empty
+                    {{-- Si no hay datos existentes, muestra un par vacío --}}
+                    <div class="row mb-2 key-value-row">
+                        <div class="col-5">
+                            <input type="text" name="dynamic_keys[]" class="form-control" placeholder="Clave Lógica (ej. rpe_empleado)">
+                        </div>
+                        <div class="col-5">
+                            <input type="text" name="dynamic_values[]" class="form-control" placeholder="Ubicación (ej. C8 o )">
+                        </div>
+                        <div class="col-2">
+                            <button type="button" class="btn btn-danger btn-sm remove-row-btn">X</button>
+                        </div>
+                    </div>
+                @endforelse
             </div>
-        @empty
-            {{-- Si no hay datos existentes, muestra un par vacío --}}
-            <div class="row mb-2 key-value-row">
-                <div class="col-5">
-                    <input type="text" name="dynamic_keys[]" class="form-control" placeholder="Clave Lógica">
-                </div>
-                <div class="col-5">
-                    <input type="text" name="dynamic_values[]" class="form-control" placeholder="Valor / Ubicación">
-                </div>
-                <div class="col-2">
-                    <button type="button" class="btn btn-danger btn-sm remove-row-btn">X</button>
-                </div>
-            </div>
-        @endforelse
-            </div>
-            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-key-value-row">Añadir Par Clave-Valor</button>
+            <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-key-value-row-mapping">Añadir Regla</button>
+            @error('dynamic_keys')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
         </div>
+        {{-- FIN: CAMPOS DINÁMICOS --}}
 
         <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" value="1" id="is_active" name="is_active" {{ old('is_active', $template->is_active) ? 'checked' : '' }}>

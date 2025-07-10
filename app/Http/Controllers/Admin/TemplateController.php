@@ -3,86 +3,126 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Template; // Tu modelo de plantilla
+use App\Models\Template;
+use App\Models\Category; // Importa el modelo Category
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Spatie\Activitylog\Models\Activity; // Para logs
-use Illuminate\Support\Facades\DB; // Para transacciones
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Spatie\Activitylog\Models\Activity;
+use Barryvdh\DomPDF\Facade\Pdf; // Para generar PDF
+use Illuminate\Support\Facades\Storage; // Para guardar PDF en storage
+use SimpleSoftwareIO\QrCode\Facades\QrCode; // Para QR en PDF (si lo necesitas aquí)
+use App\Services\GoogleDriveService;
 
 class TemplateController extends Controller
 {
-    /**
-     * Constructor del controlador.
-     * Protege las rutas para administradores con el permiso adecuado.
-     */
-    public function __construct()
+    protected $googleService; // <-- Asegúrate de que esta propiedad esté declarada
+
+    public function __construct(GoogleDriveService $googleService) // <-- Inyecta el servicio aquí
     {
+        $this->googleService = $googleService;
         $this->middleware('auth');
-        // El usuario debe tener el rol 'admin' O el permiso 'manage templates'.
         $this->middleware('role:admin|permission:manage templates');
     }
 
-    /**
-     * Muestra la lista de todas las plantillas (para administradores).
-     * Esto es diferente del TemplateController@index para usuarios normales.
-     */
-    public function index()
+    public function index(Request $request)
     {
-        // Con withTrashed() para ver también las soft-deleted
-        $templates = Template::withTrashed()->get();
-        return view('admin.templates.index', compact('templates'));
+        $query = Template::query();
+
+        // --- Filtros ---
+        $search = $request->input('search');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
+            });
+        }
+        $filterType = $request->input('type');
+        if ($filterType && in_array($filterType, ['docs', 'sheets'])) {
+            $query->where('type', $filterType);
+        }
+        $filterCategory = $request->input('category_id');
+        if ($filterCategory) {
+            $query->where('category_id', $filterCategory);
+        }
+        $filterStatus = $request->input('status'); // 'active', 'inactive', 'trashed', 'with_trashed'
+        if ($filterStatus) {
+            if ($filterStatus === 'trashed') $query->onlyTrashed();
+            elseif ($filterStatus === 'with_trashed') $query->withTrashed();
+            elseif ($filterStatus === 'active') $query->where('is_active', true)->whereNull('deleted_at');
+            elseif ($filterStatus === 'inactive') $query->where('is_active', false)->whereNull('deleted_at');
+        } else {
+            $query->where('is_active', true)->whereNull('deleted_at'); // Default: solo activas y no eliminadas
+        }
+
+        $templates = $query->orderBy('name')->paginate(10);
+        $categories = Category::all(); // Para el filtro de categorías
+
+        return view('admin.templates.index', [
+            'templates' => $templates,
+            'search_query' => $search,
+            'selected_type' => $filterType,
+            'selected_category_id' => $filterCategory,
+            'selected_status' => $filterStatus,
+            'categories' => $categories,
+        ]);
     }
 
-    /**
-     * Muestra el formulario para crear una nueva plantilla.
-     */
     public function create()
     {
-        return view('admin.templates.create');
+        $categories = Category::all(); // Para el dropdown de categorías
+        return view('admin.templates.create', compact('categories'));
     }
 
-    /**
-     * Almacena una nueva plantilla en la base de datos.
-     * Aquí se guarda el `mapping_rules_json` inicial.
-     */
     public function store(Request $request)
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:templates,name'],
             'google_drive_id' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:docs,sheets'], // Valida que sea 'docs' o 'sheets'
+            'type' => ['required', 'in:docs,sheets'],
+            'category_id' => ['nullable', 'exists:categories,id'],
             'description' => ['nullable', 'string'],
-            'is_active' => ['boolean'], // Para el checkbox
-            'mapping_rules_json_raw' => ['nullable', 'json'], // JSON crudo del textarea
-            'dynamic_keys.*' => ['nullable', 'string', 'max:255'], // Claves lógicas
-            'dynamic_values.*' => ['nullable', 'string'], // Ubicaciones físicas (celdas/marcadores)
+            'is_active' => ['boolean'],
+            // --- VALIDACIÓN PARA CAMPOS DINÁMICOS ---
+            'dynamic_keys.*' => ['nullable', 'string', 'max:255'],
+            'dynamic_values.*' => ['nullable', 'string'],
         ]);
 
+        // --- CONSTRUCCIÓN DEL JSON #1 (mapping_rules_json) ---
         $mappingRules = [];
         $keys = $request->input('dynamic_keys');
         $values = $request->input('dynamic_values');
 
         if ($keys && is_array($keys)) {
             foreach ($keys as $index => $key) {
-                if (!empty($key)) {
-                    $mappingRules[$key] = $values[$index] ?? null;
+                if (!empty($key)) { // Solo si la clave no está vacía
+                    $mappingRules[$key] = $values[$index] ?? null; // Asigna el valor
                 }
             }
         }
-        if (empty($mappingRules)) {
-            return back()->withInput()->withErrors(['dynamic_keys' => 'Debe añadir al menos un par clave-valor para las reglas de mapeo.']);
+        // --- FIN CONSTRUCCIÓN JSON #1 ---
+
+        // Validar el enlace a Google Drive
+        try {
+            $this->testGoogleDriveLink($request->google_drive_id, $request->type);
+        } catch (\Exception $e) {
+            return back()->withInput()->withErrors(['google_drive_id' => 'Error al verificar Google Drive ID: ' . $e->getMessage()]);
         }
-        
+
         DB::transaction(function () use ($request, $mappingRules) {
             $template = Template::create([
                 'name' => $request->name,
                 'google_drive_id' => $request->google_drive_id,
                 'type' => $request->type,
+                'category_id' => $request->category_id,
                 'description' => $request->description,
-                'is_active' => $request->boolean('is_active'), // Laravel convierte 0/1 o true/false
+                'is_active' => $request->boolean('is_active', true),
                 'mapping_rules_json' => $mappingRules, // Laravel guardará el array PHP como JSON
                 'created_by_user_id' => Auth::id(),
             ]);
+
+            $this->generateAndStorePdfPreview($template);
 
             activity()
                 ->performedOn($template)
@@ -94,35 +134,46 @@ class TemplateController extends Controller
         return redirect()->route('admin.templates.index')->with('success', 'Plantilla creada exitosamente.');
     }
 
-    /**
-     * Muestra el formulario para editar una plantilla existente.
-     * Incluye el `mapping_rules_json` actual.
-     */
-    public function edit(Template $template) // Route Model Binding
+    public function edit(Template $template)
     {
-        // Codifica el JSON de reglas de mapeo para mostrarlo en el textarea
-        $template->mapping_rules_json_raw = json_encode($template->mapping_rules_json, JSON_PRETTY_PRINT);
-        return view('admin.templates.edit', compact('template'));
+        $categories = Category::all();
+        // No necesitamos json_encode($template->mapping_rules_json) aquí,
+        // el Blade lo manejará directamente con el @forelse.
+        return view('admin.templates.edit', compact('template', 'categories'));
     }
 
-    /**
-     * Actualiza una plantilla existente en la base de datos.
-     * Aquí se actualiza el `mapping_rules_json`.
-     */
     public function update(Request $request, Template $template)
     {
         $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:templates,name,' . $template->id], // Ignora el propio ID al validar unique
+            'name' => ['required', 'string', 'max:255', 'unique:templates,name,' . $template->id],
             'google_drive_id' => ['required', 'string', 'max:255'],
             'type' => ['required', 'in:docs,sheets'],
+            'category_id' => ['nullable', 'exists:categories,id'],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
-            'mapping_rules_json_raw' => ['nullable', 'json'],
+            // --- VALIDACIÓN PARA CAMPOS DINÁMICOS ---
+            'dynamic_keys.*' => ['nullable', 'string', 'max:255'],
+            'dynamic_values.*' => ['nullable', 'string'],
         ]);
 
-        $mappingRules = json_decode($request->input('mapping_rules_json_raw'), true);
-        if (json_last_error() !== JSON_ERROR_NONE && $request->filled('mapping_rules_json_raw')) {
-            return back()->withInput()->withErrors(['mapping_rules_json_raw' => 'El formato JSON de las reglas de mapeo es inválido.']);
+        // --- CONSTRUCCIÓN DEL JSON #1 (mapping_rules_json) ---
+        $mappingRules = [];
+        $keys = $request->input('dynamic_keys');
+        $values = $request->input('dynamic_values');
+
+        if ($keys && is_array($keys)) {
+            foreach ($keys as $index => $key) {
+                if (!empty($key)) {
+                    $mappingRules[$key] = $values[$index] ?? null;
+                }
+            }
+        }
+
+        // Validar el enlace a Google Drive
+        try {
+            $this->testGoogleDriveLink($request->google_drive_id, $request->type);
+        } catch (\Exception $e) {
+            return back()->withInput()->withErrors(['google_drive_id' => 'Error al verificar Google Drive ID: ' . $e->getMessage()]);
         }
 
         DB::transaction(function () use ($request, $template, $mappingRules) {
@@ -130,10 +181,15 @@ class TemplateController extends Controller
                 'name' => $request->name,
                 'google_drive_id' => $request->google_drive_id,
                 'type' => $request->type,
+                'category_id' => $request->category_id,
                 'description' => $request->description,
-                'is_active' => $request->boolean('is_active'),
-                'mapping_rules_json' => $mappingRules,
+                'is_active' => $request->boolean('is_active', false),
+                'mapping_rules_json' => $mappingRules, // Laravel guardará el array PHP como JSON
             ]);
+
+            if ($template->isDirty('google_drive_id') || $template->isDirty('type')) {
+                $this->generateAndStorePdfPreview($template);
+            }
 
             activity()
                 ->performedOn($template)
@@ -146,9 +202,29 @@ class TemplateController extends Controller
     }
 
     /**
+     * Muestra la vista detallada de una plantilla (Función 1, 4, 7).
+     * Incluye previsualización PDF, historial de actividad y documentos generados.
+     * @param Template $template
+     * @return \Illuminate\View\View
+     */
+    public function show(Template $template)
+    {
+        // Historial de Actividad de Plantilla (Función 4)
+        $templateActivities = Activity::where('subject_type', Template::class)
+                                      ->where('subject_id', $template->id)
+                                      ->latest()
+                                      ->paginate(10, ['*'], 'activities_page');
+
+        // Documentos Generados a partir de esta plantilla (Función 7)
+        $generatedDocs = $template->generatedDocuments()->latest()->paginate(10, ['*'], 'generated_docs_page');
+
+        return view('admin.templates.show', compact('template', 'templateActivities', 'generatedDocs'));
+    }
+
+    /**
      * "Elimina" suavemente una plantilla.
      */
-    public function delete(Template $template)
+    public function destroy(Template $template)
     {
         DB::transaction(function () use ($template) {
             $template->delete(); // Soft delete
@@ -167,10 +243,10 @@ class TemplateController extends Controller
      */
     public function restore($id)
     {
-        $template = Template::withTrashed()->findOrFail($id); // Busca también en los soft-deleted
+        $template = Template::withTrashed()->findOrFail($id);
 
         DB::transaction(function () use ($template) {
-            $template->restore(); // Restaura
+            $template->restore();
             activity()
                 ->performedOn($template)
                 ->causedBy(Auth::user())
@@ -182,7 +258,7 @@ class TemplateController extends Controller
     }
 
     /**
-     * Elimina permanentemente una plantilla.
+     * Elimina permanentemente una plantilla y su PDF de previsualización.
      * ¡CUIDADO! Romperá referencias en generated_documents.
      */
     public function forceDelete($id)
@@ -190,14 +266,149 @@ class TemplateController extends Controller
         $template = Template::withTrashed()->findOrFail($id);
 
         DB::transaction(function () use ($template) {
-            $template->forceDelete(); // Elimina permanentemente
+            // Eliminar el archivo PDF de previsualización si existe
+            if ($template->pdf_file_path && Storage::disk('public')->exists($template->pdf_file_path)) {
+                Storage::disk('public')->delete($template->pdf_file_path);
+            }
+
+            $template->forceDelete(); // Elimina permanentemente el registro
             activity()
-                ->performedOn($template)
+                ->performedOn(null) // Sujeto nulo porque se va a borrar
                 ->causedBy(Auth::user())
                 ->event('template_force_deleted')
                 ->log('eliminó PERMANENTEMENTE la plantilla: "' . $template->name . '".');
         });
 
         return redirect()->route('admin.templates.index')->with('success', 'Plantilla eliminada permanentemente.');
+    }
+
+    /**
+     * Duplica una plantilla existente (Función 5).
+     * Copia la plantilla en Google Drive y crea un nuevo registro en DB.
+     * @param Template $template
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function duplicate(Template $template)
+    {
+        try {
+            $driveService = $this->googleService->getDriveService();
+
+            // 1. Copiar la plantilla original en Google Drive
+            $copy = new \Google\Service\Drive\DriveFile();
+            $copy->setName($template->name . ' (Copia) - ' . now()->format('YmdHis'));
+            $copiedFile = $driveService->files->copy($template->google_drive_id, $copy);
+            $newGoogleDriveId = $copiedFile->getId();
+
+            // 2. Crear un nuevo registro de plantilla en la DB con los datos duplicados
+            DB::transaction(function () use ($template, $newGoogleDriveId) {
+                $newTemplate = Template::create([
+                    'name' => $template->name . ' (Copia)',
+                    'google_drive_id' => $newGoogleDriveId,
+                    'type' => $template->type,
+                    'category_id' => $template->category_id,
+                    'mapping_rules_json' => $template->mapping_rules_json,
+                    'description' => $template->description . ' (Copia generada de ' . $template->name . ')',
+                    'is_active' => false, // Por defecto, la copia está inactiva hasta que se revise
+                    'created_by_user_id' => Auth::id(),
+                ]);
+
+                // Generar y guardar la copia PDF para la plantilla duplicada
+                $this->generateAndStorePdfPreview($newTemplate);
+
+                activity()
+                    ->performedOn($newTemplate)
+                    ->causedBy(Auth::user())
+                    ->event('template_duplicated')
+                    ->log('duplicó la plantilla: "' . $template->name . '" a "' . $newTemplate->name . '".');
+            });
+
+            return redirect()->route('admin.templates.index')->with('success', 'Plantilla duplicada exitosamente.');
+
+        } catch (\Google\Service\Exception $e) {
+            $errorDetails = json_decode($e->getMessage(), true);
+            $message = $errorDetails['error']['message'] ?? $e->getMessage();
+            Log::error('Error de API de Google al duplicar plantilla: ' . $message, ['template_id' => $template->id]);
+            return back()->with('error', 'Error al duplicar la plantilla en Google Drive: ' . $message);
+        } catch (\Exception $e) {
+            Log::error('Error inesperado al duplicar plantilla: ' . $e->getMessage(), ['template_id' => $template->id]);
+            return back()->with('error', 'Error inesperado al duplicar la plantilla: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Helper: Verifica si un Google Drive ID es válido y accesible (Función 6).
+     * @param string $googleDriveId
+     * @param string $type 'docs' o 'sheets'
+     * @throws \Exception Si el ID no es válido o no es accesible.
+     */
+    protected function testGoogleDriveLink(string $googleDriveId, string $type): void
+    {
+        $driveService = $this->googleService->getDriveService();
+        try {
+            $file = $driveService->files->get($googleDriveId, ['fields' => 'mimeType,name']);
+            // Opcional: Verificar que el mimeType coincida con el tipo esperado (Docs/Sheets)
+            if ($type === 'docs' && $file->getMimeType() !== 'application/vnd.google-apps.document') {
+                throw new \Exception('El ID de Google Drive no corresponde a un Google Doc.');
+            }
+            if ($type === 'sheets' && $file->getMimeType() !== 'application/vnd.google-apps.spreadsheet') {
+                throw new \Exception('El ID de Google Drive no corresponde a un Google Sheet.');
+            }
+            // Puedes añadir una comprobación de permisos si quieres que sea accesible públicamente
+            // $permissions = $driveService->permissions->listDocuments($googleDriveId, ['fields' => 'permissions(id,type,role)']);
+            // $hasPublicAccess = false;
+            // foreach ($permissions->getPermissions() as $permission) {
+            //     if ($permission->getType() === 'anyone' && ($permission->getRole() === 'reader' || $permission->getRole() === 'writer')) {
+            //         $hasPublicAccess = true;
+            //         break;
+            //     }
+            // }
+            // if (!$hasPublicAccess) {
+            //     throw new \Exception('La plantilla no tiene permisos de acceso público (cualquiera con el enlace).');
+            // }
+
+        } catch (\Google\Service\Exception $e) {
+            $errorDetails = json_decode($e->getMessage(), true);
+            $message = $errorDetails['error']['message'] ?? $e->getMessage();
+            if ($e->getCode() === 404) {
+                throw new \Exception('El ID de Google Drive no existe o no es accesible.');
+            }
+            throw new \Exception('Error al verificar el ID de Google Drive: ' . $message);
+        }
+    }
+
+    /**
+     * Helper: Genera una copia PDF de la plantilla y la guarda en el storage (Función 1).
+     * @param Template $template
+     * @return void
+     */
+    protected function generateAndStorePdfPreview(Template $template): void
+    {
+        try {
+            // 1. Obtener el contenido del documento de Google Drive
+            $driveService = $this->googleService->getDriveService();
+            $exportMimeType = ($template->type === 'docs') ? 'application/pdf' : 'application/pdf'; // Exportar ambos como PDF
+
+            // Exportar el documento de Google Drive a PDF
+            $response = $driveService->files->export($template->google_drive_id, $exportMimeType, ['alt' => 'media']);
+            $pdfContent = $response->getBody()->getContents();
+
+            // 2. Guardar el PDF en el storage
+            $fileName = 'templates_pdf/' . $template->id . '.pdf';
+            Storage::disk('public')->put($fileName, $pdfContent);
+
+            // 3. Actualizar la ruta del PDF en la DB de la plantilla
+            $template->pdf_file_path = $fileName;
+            $template->save();
+
+            Log::info("PDF de previsualización generado y guardado para plantilla ID: {$template->id}");
+
+        } catch (\Google\Service\Exception $e) {
+            $errorDetails = json_decode($e->getMessage(), true);
+            $message = $errorDetails['error']['message'] ?? $e->getMessage();
+            Log::error("Error al generar PDF de previsualización para plantilla ID: {$template->id}: {$message}");
+            // No lanzar excepción para no detener el store/update principal, solo loggear
+        } catch (\Exception $e) {
+            Log::error("Error inesperado al generar PDF de previsualización para plantilla ID: {$template->id}: {$e->getMessage()}");
+        }
     }
 }
