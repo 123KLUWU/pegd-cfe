@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name')->unique(); // Visible name of the template (e.g., "Turbine Calibration Sheet A")
             $table->string('google_drive_id'); // ID of the master template file in Google Drive
-            $table->enum('type', ['docs', 'sheets']); // Type of template (Docs or Sheets)
+            $table->enum('type', ['document', 'spreadsheets']); // Type of template (document or spreadsheets)
             $table->json('mapping_rules_json')->nullable(); // JSON with mapping rules for data to cells/placeholders
             $table->text('description')->nullable(); // Detailed description of the template
             $table->boolean('is_active')->default(true); // Controls if the template is available for generation

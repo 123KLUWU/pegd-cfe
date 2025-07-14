@@ -21,7 +21,7 @@ return new class extends Migration
             // If the template is soft-deleted, we still keep the generated document record.
             $table->foreignId('template_id')->nullable()->constrained('templates')->onDelete('set null');
             $table->string('title'); // Title of the generated document
-            $table->enum('type', ['docs', 'sheets']); // Type of document (docs or sheets)
+            $table->enum('type', ['document', 'spreadsheets']); // Type of document (document or spreadsheets)
             $table->enum('visibility_status', ['public_editable', 'public_viewable', 'private_restricted'])->default('private_restricted');
             $table->timestamp('generated_at'); // When it was generated
             $table->timestamp('make_private_at')->nullable(); // When it should be made private (for scheduler)

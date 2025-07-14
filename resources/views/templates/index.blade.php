@@ -1,17 +1,15 @@
-{{-- resources/views/admin/templates/index.blade.php --}}
-@extends('layouts.app')
+{{-- resources/views/templates/index.blade.php --}}
+@extends('layouts.app') {{-- Asegúrate que este sea tu layout base principal --}}
 
-@section('title', 'Gestión de Plantillas (Admin)')
+@section('title', 'Menú de Plantillas')
 
 @section('content')
 <div class="container mt-5">
-    <h1>Gestión de Plantillas</h1>
+    <h1>Menú de Plantillas Disponibles</h1>
 
-    <a href="{{ route('admin.templates.create') }}" class="btn btn-success mb-3">Crear Nueva Plantilla</a>
-
-    @if (session('success'))
+    @if (session('status'))
         <div class="alert alert-success mt-3" role="alert">
-            {{ session('success') }}
+            {{ session('status') }}
         </div>
     @endif
     @if (session('error'))
@@ -20,69 +18,81 @@
         </div>
     @endif
 
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Google Drive ID</th>
-                <th>Activa</th>
-                <th>Creada Por</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($templates as $template)
-                <tr>
-                    <td>{{ $template->id }}</td>
-                    <td>{{ $template->name }}</td>
-                    <td>{{ ucfirst($template->type) }}</td>
-                    <td><a href="https://docs.google.com/{{ $template->type }}s/d/{{ $template->google_drive_id }}/edit" target="_blank">{{ Str::limit($template->google_drive_id, 15) }}</a></td>
-                    <td>
-                        @if($template->is_active)
-                            <span class="badge bg-success">Sí</span>
-                        @else
-                            <span class="badge bg-danger">No</span>
+    {{-- Formulario de Búsqueda y Filtros --}}
+    <form method="GET" action="{{ route('templates.index') }}" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="search" class="form-label">Buscar por Nombre/Descripción:</label>
+                <input type="text" class="form-control" id="search" name="search" value="{{ $search_query }}" placeholder="Buscar...">
+            </div>
+            <div class="col-md-3">
+                <label for="type" class="form-label">Filtrar por Tipo:</label>
+                <select class="form-select" id="type" name="type">
+                    <option value="">Todos los Tipos</option>
+                    <option value="docs" {{ $selected_type == 'docs' ? 'selected' : '' }}>Google Docs</option>
+                    <option value="sheets" {{ $selected_type == 'sheets' ? 'selected' : '' }}>Google Sheets</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="category_id" class="form-label">Filtrar por Categoría:</label>
+                <select class="form-select" id="category_id" name="category_id">
+                    <option value="">Todas las Categorías</option>
+                    @foreach ($categories as $category)
+                        <option value="{{ $category->id }}" {{ $selected_category_id == $category->id ? 'selected' : '' }}>{{ $category->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="row">
+        @forelse ($templates as $template)
+            <div class="col-md-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ $template->name }}</h5>
+                        <p class="card-text">{{ Str::limit($template->description, 80) ?? 'Sin descripción.' }}</p>
+                        <p class="card-text"><small class="text-muted">Tipo: {{ ucfirst($template->type) }}</small></p>
+                        @if ($template->category)
+                            <p class="card-text"><small class="text-muted">Categoría: {{ $template->category->name }}</small></p>
                         @endif
-                    </td>
-                    <td>{{ $template->createdBy->name ?? 'N/A' }}</td>
-                    <td>
-                        @if ($template->trashed())
-                            <span class="badge bg-secondary">Eliminada</span>
-                        @else
-                            <span class="badge bg-primary">Activa</span>
-                        @endif
-                    </td>
-                    <td>
-                        <a href="{{ route('admin.templates.edit', $template->id) }}" class="btn btn-warning btn-sm">Editar</a>
-                        <a href="{{ route('admin.templates.prefilled-data.create', $template->id) }}" class="btn btn-info btn-sm">Gestionar Datos Prefill</a>
-                        
-                        @if (!$template->trashed())
-                            <form action="{{ route('admin.templates.delete', $template->id) }}" method="POST" class="d-inline">
+
+                        <div class="mt-3 d-flex flex-wrap justify-content-between align-items-center">
+                            
+                            {{-- Botón Consolidado: "Generar Documento" --}}
+                            <form action="{{ route('documents.generate.blank') }}" method="POST">
                                 @csrf
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Estás seguro de eliminar (soft delete) esta plantilla?')">Eliminar</button>
+                                <input type="hidden" name="template_id" value="{{ $template->id }}">
+                                <button type="submit" class="btn btn-primary btn-sm mb-2 me-2">Generar Documento</button>
                             </form>
-                        @else
-                            <form action="{{ route('admin.templates.restore', $template->id) }}" method="POST" class="d-inline">
-                                @csrf
-                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('¿Estás seguro de restaurar esta plantilla?')">Restaurar</button>
-                            </form>
-                            <form action="{{ route('admin.templates.force_delete', $template->id) }}" method="POST" class="d-inline">
-                                @csrf
-                                @method('DELETE') {{-- Método DELETE HTTP --}}
-                                <button type="submit" class="btn btn-dark btn-sm" onclick="return confirm('¡ADVERTENCIA! ¿Estás seguro de eliminar PERMANENTEMENTE esta plantilla? Romperá referencias.')">Borrar Perm.</button>
-                            </form>
-                        @endif
-                    </td>
-                </tr>
-            @empty
-                <tr>
-                    <td colspan="8">No hay plantillas registradas.</td>
-                </tr>
-            @endforelse
-        </tbody>
-    </table>
+
+                            {{-- Botones de Descarga Directa (para usuario) --}}
+                            @if($template->pdf_file_path)
+                                <a href="{{ route('templates.show_pdf_preview', $template->id) }}" target="_blank" class="btn btn-outline-info btn-sm mb-2 me-2">Ver PDF</a>
+                            @endif
+                            @if($template->office_file_path)
+                                <a href="{{ route('templates.download_office', $template->id) }}" class="btn btn-outline-secondary btn-sm mb-2">Descargar {{ strtoupper($template->type) == 'DOCS' ? 'DOCX' : 'XLSX' }}</a>
+                            @endif
+
+                            {{-- Nota: Opciones de Admin ya no van aquí --}}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="col-12">
+                <div class="alert alert-info" role="alert">
+                    No se encontraron plantillas activas con los criterios de búsqueda/filtro.
+                </div>
+            </div>
+        @endforelse
+    </div>
+    {{-- Paginación --}}
+    <div class="d-flex justify-content-center">
+       {{ $templates->appends(request()->query())->links() }}
+    </div>
 </div>
 @endsection

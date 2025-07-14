@@ -158,26 +158,26 @@
         <div class="offcanvas-body d-md-flex flex-column p-0 pt-lg-3 overflow-y-auto">
           <ul class="nav flex-column">
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2 active" aria-current="page" href="#">
+              <a class="nav-link d-flex align-items-center gap-2 active" aria-current="page" href="{{ route('home') }}">
                 <svg class="bi"><use xlink:href="#house-fill"/></svg>
-                Dashboard
+                  Inicio
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('diagrams.index') }}">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.templates.prefilled-data.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark"/></svg>
-                Diagramas
+                prelle p
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="#">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('prefilled-data.index') }}">
                 <svg class="bi"><use xlink:href="#cart"/></svg>
-                Products
+                Prelle p m
               </a>
             </li>
 
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2"href="{{ route('templates.index') }}">
+              <a class="nav-link d-flex align-items-center gap-2"href="">
                 <svg class="bi"><use xlink:href="#graph-up"/></svg>
                 plantillas
               </a>
@@ -198,15 +198,15 @@
           </h6>
           <ul class="nav flex-column mb-auto">
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="#">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('diagrams.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark-text"/></svg>
-                Current month
+                  Diagramas y manuales
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="#">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('templates.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark-text"/></svg>
-                Last quarter
+                  Hojas de calibración
               </a>
             </li>
             <li class="nav-item">
@@ -227,25 +227,25 @@
           
           <hr class="my-3">
           <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-1 mb-1 text-body-secondary text-uppercase">
-            <span>Saved reports</span>
+            <span>Panel de administración</span>
           </h6>
           <ul class="nav flex-column mb-auto">
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('users.index') }}">
                 <svg class="bi"><use xlink:href="#people"/></svg>
-                  Panel de usuarios
+                  Usuarios
               </a>
             </li>
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.diagrams.index') }}">
                 <svg class="bi"><use xlink:href="#people"/></svg>
-                admin.diagrams.restore
+                  Diagramas
               </a>
             </li>
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.templates.index') }}">
                 <svg class="bi"><use xlink:href="#people"/></svg>
-                  manejar plantillas
+                  Plantillas
               </a>
             </li>
           </ul>
@@ -263,7 +263,7 @@
                   onclick="event.preventDefault();
                   document.getElementById('logout-form').submit();">
                 <svg class="bi"><use xlink:href="#door-closed"/></svg>
-                Cerrar sesion
+                Cerrar sesión
               </a>
               <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
                 @csrf

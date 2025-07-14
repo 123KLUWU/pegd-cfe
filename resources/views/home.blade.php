@@ -14,9 +14,12 @@
                         </div>
                     @endif
 
-                    {{ __('You are logged in!') }}
+                    iniciaste sesión
                 </div>
             </div>
+        </div>
+        <div class="col-auto d-lg-block">
+            <img width="100%" height="250" class="rounded float-start" src="{{ asset('img/cfe_icon.svg') }}">
         </div>
     </div>
 </div>

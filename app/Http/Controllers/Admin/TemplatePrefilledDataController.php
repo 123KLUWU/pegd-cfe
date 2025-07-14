@@ -14,7 +14,55 @@ class TemplatePrefilledDataController extends Controller
     public function __construct()
     {
         $this->middleware('auth');
-        $this->middleware('role:admin|permission:manage templates'); // Solo admins o con permiso
+        // El usuario debe tener el rol 'admin' O el permiso 'manage templates'
+        $this->middleware('role:admin|permission:manage templates');
+    }
+
+    /**
+     * Muestra el listado de todos los formatos prellenados (para administradores).
+     * Este será el nuevo menú principal para prellenados.
+     * @param Request $request
+     * @return \Illuminate\View\View
+     */
+    public function index(Request $request)
+    {
+        $query = TemplatePrefilledData::query();
+
+        // --- Filtros ---
+        $search = $request->input('search');
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%' . $search . '%')
+                  ->orWhere('description', 'like', '%' . $search . '%');
+                // Opcional: buscar dentro del JSON (más complejo, requiere MySQL 5.7.8+ o MariaDB 10.2.3+)
+                // $q->orWhereJsonContains('data_json', $search);
+            });
+        }
+        $filterTemplateId = $request->input('template_id');
+        if ($filterTemplateId) {
+            $query->where('template_id', $filterTemplateId);
+        }
+        // Eliminado: $filterDefault = $request->input('is_default_option');
+        // Eliminado: if ($filterDefault !== null) { ... }
+        $filterStatus = $request->input('status'); // 'trashed', 'with_trashed'
+        if ($filterStatus) {
+            if ($filterStatus === 'trashed') $query->onlyTrashed();
+            elseif ($filterStatus === 'with_trashed') $query->withTrashed();
+        } else {
+            $query->whereNull('deleted_at'); // Default: solo no eliminados
+        }
+
+        $prefilledData = $query->orderBy('name')->paginate(15);
+        $templates = Template::all(); // Para el filtro de plantillas
+
+        return view('admin.template_prefilled_data.index', [
+            'prefilledData' => $prefilledData,
+            'search_query' => $search,
+            'selected_template_id' => $filterTemplateId,
+            // Eliminado: 'selected_default_option' => $filterDefault,
+            'selected_status' => $filterStatus,
+            'templates' => $templates,
+        ]);
     }
 
     // Muestra el formulario para crear un nuevo conjunto de datos prellenados

@@ -14,7 +14,27 @@ use App\Http\Controllers\Admin\TemplateController as AdminTemplateController; //
 use App\Http\Controllers\DiagramController;
 use App\Http\Controllers\Admin\DiagramController as AdminDiagramController; // Alias
 use App\Http\Controllers\Admin\UserController as AdminUserController; // Alias para evitar conflicto de nombres
+use App\Http\Controllers\Admin\TemplatePrefilledDataController as AdminTemplatePrefilledDataController; // Alias
+use App\Http\Controllers\UserTemplateController;
+use App\Http\Controllers\ApiLookupController;
+use App\Http\Controllers\UserPrefilledDataController; // ¡Importa el nuevo controlador!
+// ...
 
+// Rutas de Usuarios (accesibles por todos los autenticados)
+Route::middleware(['auth'])->group(function () {
+    // ... tus otras rutas de usuario (templates.index, documents.generate.*, etc.) ...
+
+    // Rutas para el listado de formatos prellenados para usuarios
+    Route::get('/prefilled-data', [UserPrefilledDataController::class, 'index'])->name('prefilled-data.index');
+
+    // La ruta para generar documentos predefinidos ya está en DocumentGenerationController
+    // Route::post('/documents/generate/predefined', [DocumentGenerationController::class, 'generatePredefined'])->name('documents.generate.predefined');
+});
+// routes/web.php (o routes/api.php)
+Route::middleware(['auth'])->prefix('api/lookup')->group(function () {
+    Route::get('tags', [ApiLookupController::class, 'getTags'])->name('api.lookup.tags');
+    Route::get('unidades', [ApiLookupController::class, 'getUnidades'])->name('api.lookup.unidades');
+});
 // Rutas de Administración de Usuarios
 
 Route::middleware(['auth', 'role:admin|permission:manage users'])->prefix('admin')->group(function () {
@@ -81,22 +101,37 @@ Auth::routes();
 
 Route::get('/home', [HomeController::class, 'index'])->name('home');
 
-// Rutas de Administración de Plantillas
+Route::middleware(['auth'])->group(function () {
+    // ... tus otras rutas de usuario (templates.index, documents.generate.*, etc.) ...
+
+    // Rutas para servir/descargar copias de plantillas (accesibles por todos los autenticados)
+    // El parámetro {template} usará Route Model Binding
+    Route::get('templates/{template}/preview-pdf', [UserTemplateController::class, 'showPdfPreview'])->name('templates.show_pdf_preview');
+    Route::get('templates/{template}/download-office', [UserTemplateController::class, 'downloadOfficeFile'])->name('templates.download_office');
+});
+
 Route::middleware(['auth', 'role:admin|permission:manage templates'])->prefix('admin/templates')->group(function () {
     Route::get('/', [AdminTemplateController::class, 'index'])->name('admin.templates.index');
     Route::get('/create', [AdminTemplateController::class, 'create'])->name('admin.templates.create');
     Route::post('/', [AdminTemplateController::class, 'store'])->name('admin.templates.store');
+    Route::get('/{template}/show', [AdminTemplateController::class, 'show'])->name('admin.templates.show'); // Nueva ruta show
     Route::get('/{template}/edit', [AdminTemplateController::class, 'edit'])->name('admin.templates.edit');
     Route::put('/{template}', [AdminTemplateController::class, 'update'])->name('admin.templates.update');
-    Route::post('/{template}/delete', [AdminTemplateController::class, 'delete'])->name('admin.templates.delete');
+    Route::post('/{template}/delete', [AdminTemplateController::class, 'destroy'])->name('admin.templates.destroy'); // Usar destroy para soft delete
     Route::post('/{id}/restore', [AdminTemplateController::class, 'restore'])->name('admin.templates.restore');
-    Route::delete('/{id}/force-delete', [AdminTemplateController::class, 'forceDelete'])->name('admin.templates.force_delete'); // Usa método DELETE HTTP
-    Route::prefix('{template}/prefilled-data')->group(function () {
-        Route::get('/create', [TemplatePrefilledDataController::class, 'create'])->name('admin.templates.prefilled-data.create');
-        Route::post('/', [TemplatePrefilledDataController::class, 'store'])->name('admin.templates.prefilled-data.store');
-        Route::get('/{prefilledData}/edit', [TemplatePrefilledDataController::class, 'edit'])->name('admin.templates.prefilled-data.edit');
-        Route::put('/{prefilledData}', [TemplatePrefilledDataController::class, 'update'])->name('admin.templates.prefilled-data.update');
-    
+    Route::delete('/{id}/force-delete', [AdminTemplateController::class, 'forceDelete'])->name('admin.templates.force_delete'); // Usar DELETE HTTP
+    Route::get('templates/{template}/preview-pdf', [AdminTemplateController::class, 'servePdfPreview'])->name('admin.templates.serve_pdf_preview');
+    // Duplicar Plantilla (Función 5)
+    Route::post('/{template}/duplicate', [AdminTemplateController::class, 'duplicate'])->name('admin.templates.duplicate');
+
+    Route::prefix('/prefilled-data')->group(function () {
+        Route::get('/', [AdminTemplatePrefilledDataController::class, 'index'])->name('admin.templates.prefilled-data.index');
+        Route::get('/{template}/create', [AdminTemplatePrefilledDataController::class, 'create'])->name('admin.templates.prefilled-data.create');
+        Route::post('/{template}', [AdminTemplatePrefilledDataController::class, 'store'])->name('admin.templates.prefilled-data.store');
+    });
+    Route::prefix('{prefilledData}/prefilled-data')->group(function () {
+        Route::get('/edit', [AdminTemplatePrefilledDataController::class, 'edit'])->name('admin.templates.prefilled-data.edit');
+        Route::put('/update', [AdminTemplatePrefilledDataController::class, 'update'])->name('admin.templates.prefilled-data.update');
     });
 });
 
