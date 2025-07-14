@@ -164,15 +164,15 @@
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.templates.prefilled-data.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark"/></svg>
-                Diagramas
+                prelle p
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="#">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('prefilled-data.index') }}">
                 <svg class="bi"><use xlink:href="#cart"/></svg>
-                Products
+                Prelle p m
               </a>
             </li>
 

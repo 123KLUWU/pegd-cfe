@@ -16,7 +16,25 @@ use App\Http\Controllers\Admin\DiagramController as AdminDiagramController; // A
 use App\Http\Controllers\Admin\UserController as AdminUserController; // Alias para evitar conflicto de nombres
 use App\Http\Controllers\Admin\TemplatePrefilledDataController as AdminTemplatePrefilledDataController; // Alias
 use App\Http\Controllers\UserTemplateController;
+use App\Http\Controllers\ApiLookupController;
+use App\Http\Controllers\UserPrefilledDataController; // ¡Importa el nuevo controlador!
+// ...
 
+// Rutas de Usuarios (accesibles por todos los autenticados)
+Route::middleware(['auth'])->group(function () {
+    // ... tus otras rutas de usuario (templates.index, documents.generate.*, etc.) ...
+
+    // Rutas para el listado de formatos prellenados para usuarios
+    Route::get('/prefilled-data', [UserPrefilledDataController::class, 'index'])->name('prefilled-data.index');
+
+    // La ruta para generar documentos predefinidos ya está en DocumentGenerationController
+    // Route::post('/documents/generate/predefined', [DocumentGenerationController::class, 'generatePredefined'])->name('documents.generate.predefined');
+});
+// routes/web.php (o routes/api.php)
+Route::middleware(['auth'])->prefix('api/lookup')->group(function () {
+    Route::get('tags', [ApiLookupController::class, 'getTags'])->name('api.lookup.tags');
+    Route::get('unidades', [ApiLookupController::class, 'getUnidades'])->name('api.lookup.unidades');
+});
 // Rutas de Administración de Usuarios
 
 Route::middleware(['auth', 'role:admin|permission:manage users'])->prefix('admin')->group(function () {
@@ -106,13 +124,14 @@ Route::middleware(['auth', 'role:admin|permission:manage templates'])->prefix('a
     // Duplicar Plantilla (Función 5)
     Route::post('/{template}/duplicate', [AdminTemplateController::class, 'duplicate'])->name('admin.templates.duplicate');
 
-    // Rutas para gestionar datos prellenados asociados a una plantilla
-    Route::prefix('{template}/prefilled-data')->group(function () {
-        Route::get('/create', [AdminTemplatePrefilledDataController::class, 'create'])->name('admin.templates.prefilled-data.create');
-        Route::post('/', [AdminTemplatePrefilledDataController::class, 'store'])->name('admin.templates.prefilled-data.store');
-        Route::get('/{prefilledData}/edit', [AdminTemplatePrefilledDataController::class, 'edit'])->name('admin.templates.prefilled-data.edit');
-        Route::put('/{prefilledData}', [AdminTemplatePrefilledDataController::class, 'update'])->name('admin.templates.prefilled-data.update');
-        // ... otras rutas para index, show, delete de prefilled data ...
+    Route::prefix('/prefilled-data')->group(function () {
+        Route::get('/', [AdminTemplatePrefilledDataController::class, 'index'])->name('admin.templates.prefilled-data.index');
+        Route::get('/{template}/create', [AdminTemplatePrefilledDataController::class, 'create'])->name('admin.templates.prefilled-data.create');
+        Route::post('/{template}', [AdminTemplatePrefilledDataController::class, 'store'])->name('admin.templates.prefilled-data.store');
+    });
+    Route::prefix('{prefilledData}/prefilled-data')->group(function () {
+        Route::get('/edit', [AdminTemplatePrefilledDataController::class, 'edit'])->name('admin.templates.prefilled-data.edit');
+        Route::put('/update', [AdminTemplatePrefilledDataController::class, 'update'])->name('admin.templates.prefilled-data.update');
     });
 });
 

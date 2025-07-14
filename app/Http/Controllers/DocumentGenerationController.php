@@ -25,8 +25,7 @@ class DocumentGenerationController extends Controller
     {
         $this->googleService = $googleService;
         $this->middleware('auth');
-        // Opcional: proteger los métodos con permisos más específicos (ej. usando spatie/laravel-permission)
-        // $this->middleware('permission:generate documents');
+        $this->middleware('permission:generate documents');
     }
 
     /**
@@ -42,7 +41,10 @@ class DocumentGenerationController extends Controller
     protected function generateDocument(Template $template, array $dataForFilling, string $visibilityStatus = 'public_editable'): string
     {
         try {
+            $docsService = $this->googleService->getDocsService();
+            $sheetsService = $this->googleService->getSheetsService();
             $driveService = $this->googleService->getDriveService();
+
             $newDocTitle = $template->name . ' - ' . Auth::user()->rpe . ' - ' . now()->format('YmdHis');
 
             // 1. Copiar la plantilla
@@ -57,8 +59,6 @@ class DocumentGenerationController extends Controller
             $mappingRules = $template->mapping_rules_json; // JSON #1: Las reglas de mapeo de la plantilla
 
             if ($template->type === 'document') {
-                $link = 'https://docs.google.com/document/d/';
-                $docsService = $this->googleService->getDocsService();
                 $requests = [];
                 foreach ($mappingRules as $logicalKey => $placeholder) {
                     if (isset($dataForFilling[$logicalKey])) {
@@ -75,8 +75,6 @@ class DocumentGenerationController extends Controller
                     $docsService->documents->batchUpdate($newGoogleDriveId, $batchUpdateRequest);
                 }
             } elseif ($template->type === 'spreadsheets') {
-                $link = 'https://docs.google.com/spreadsheets/d/';
-                $sheetsService = $this->googleService->getSheetsService();
                 foreach ($mappingRules as $logicalKey => $cellAddress) {
                     if (isset($dataForFilling[$logicalKey])) {
                         $value = $dataForFilling[$logicalKey];
@@ -94,17 +92,11 @@ class DocumentGenerationController extends Controller
             }
 
             // 3. Establecer Permisos (si visibilityStatus lo requiere)
-            if ($visibilityStatus === 'public_editable') {
-                $newPermission = new Permission();
-                $newPermission->setType('anyone');
-                $newPermission->setRole('writer');
-                $driveService->permissions->create($newGoogleDriveId, $newPermission);
-            } elseif ($visibilityStatus === 'public_viewable') {
-                $newPermission = new Permission();
-                $newPermission->setType('anyone');
-                $newPermission->setRole('reader');
-                $driveService->permissions->create($newGoogleDriveId, $newPermission);
-            }
+            $newPermission = new Permission();
+            $newPermission->setType('anyone');
+            $newPermission->setRole('writer'); // Siempre editable
+            $driveService->permissions->create($newGoogleDriveId, $newPermission);
+            $visibilityStatus = 'public_editable';
 
             // 4. Registrar en generated_documents (adaptar según tu modelo)
             $generatedDoc = GeneratedDocument::create([
@@ -115,9 +107,9 @@ class DocumentGenerationController extends Controller
                 'type' => $template->type,
                 'visibility_status' => $visibilityStatus,
                 'generated_at' => now(),
-                // Regla para hacer privado: ej. 3 horas después si era público
-                'make_private_at' => ($visibilityStatus === 'public_editable' || $visibilityStatus === 'public_viewable') ? now()->addHours(3) : null,
-                'data_values_json' => $dataForFilling, // <-- ¡Aquí se guarda el JSON de datos usados!
+                // Regla para hacer privado: ej. 3 o 4 horas después si era público
+                'make_private_at' => now()->addHours(4),
+                'data_values_json' => $dataForFilling,
             ]);
 
             // 5. Log de Actividad
@@ -127,12 +119,12 @@ class DocumentGenerationController extends Controller
                 ->event('document_generated')
                 ->withProperties([
                     'template_name' => $template->name,
-                    'document_link' => $link . $newGoogleDriveId . '/edit',
+                    'document_link' => 'https://docs.google.com/' . $template->type . '/d/' . $newGoogleDriveId . '/edit',
                     'visibility' => $visibilityStatus,
                 ])
                 ->log('generó un nuevo documento: "' . $newDocTitle . '".');
 
-            return $link . $newGoogleDriveId . '/edit';
+                return 'https://docs.google.com/' . $template->type . '/d/' . $newGoogleDriveId . '/edit';
 
         } catch (\Google\Service\Exception $e) {
             $errorDetails = json_decode($e->getMessage(), true);
@@ -147,7 +139,58 @@ class DocumentGenerationController extends Controller
 
 
     // --- Métodos de Generación para el Menú ---
+    public function generatePredefined(Request $request)
+    {
+        $request->validate([
+            'prefilled_data_id' => ['required', 'exists:template_prefilled_data,id'],
+        ]);
 
+        $prefilledData = TemplatePrefilledData::findOrFail($request->prefilled_data_id);
+        $template = $prefilledData->template; // Obtiene la plantilla asociada al formato prellenado
+
+        if (!$template || !$template->is_active || $template->trashed()) {
+            return back()->with('error', 'La plantilla asociada a este formato prellenado no es válida o no está activa.');
+        }
+
+        // --- PREPARACIÓN DE $dataForFilling ---
+        $dataForFilling = [];
+
+        // 1. Datos genéricos automáticos (ej. del usuario autenticado o fecha actual)
+        $dataForFilling['rpe_empleado'] = Auth::user()->rpe;
+        $dataForFilling['nombre_empleado'] = Auth::user()->name;
+        $dataForFilling['fecha_actual'] = now()->format('d/m/Y');
+
+        // 2. Datos de claves foráneas de TemplatePrefilledData (si los tienes en esa tabla)
+        // Asume que TemplatePrefilledData tiene FKs como tag_id, unidad_id y que tú los buscas aquí.
+        // Asegúrate de que los modelos Tag, Unidad, etc., estén importados o se resuelvan.
+        if ($prefilledData->tag_id) {
+             $tag = \App\Models\Tag::find($prefilledData->tag_id);
+             if ($tag) {
+                 $dataForFilling['tag_instrumento'] = $tag->tag;
+             }
+        }
+        if ($prefilledData->unidad_id) {
+            $unidad = \App\Models\Unidad::find($prefilledData->unidad_id);
+            if ($unidad) {
+                $dataForFilling['unidad_maquina'] = $unidad->name;
+            }
+        }
+        // ... Repite para otros campos genéricos como sistema_id, servicio_id
+
+        // 3. Datos únicos del JSON 'data_json' (este es el JSON #2)
+        if ($prefilledData->data_json) {
+            $dataForFilling = array_merge($dataForFilling, $prefilledData->data_json);
+        }
+        // --- FIN DE LA PREPARACIÓN ---
+
+        try {
+            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable');
+            return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $prefilledData->name]);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Hubo un error al generar el documento. ' . $e->getMessage());
+        }
+    }
+    
     /**
      * Genera un documento en blanco a partir de una plantilla seleccionada.
      * @param Request $request Contiene 'template_id'.
@@ -170,79 +213,12 @@ class DocumentGenerationController extends Controller
     }
 
     /**
-     * Genera un documento usando datos predefinidos de un formato almacenado.
-     * @param Request $request Contiene 'template_id' y opcionalmente 'predefined_format_id'.
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function generatePredefined(Request $request)
-    {
-        $request->validate([
-            'template_id' => ['required', 'exists:templates,id'],
-            'predefined_format_id' => ['nullable', 'exists:template_prefilled_data,id'], // Si eliges un ID específico
-        ]);
-
-        $template = Template::findOrFail($request->template_id);
-        $predefinedFormat = null;
-
-        if ($request->filled('predefined_format_id')) {
-            $predefinedFormat = TemplatePrefilledData::findOrFail($request->predefined_format_id);
-        } else {
-            // Si no se especifica un ID de formato, busca la opción por defecto para esa plantilla
-            $predefinedFormat = TemplatePrefilledData::where('template_id', $template->id)
-                                                    ->where('is_default_option', true)
-                                                    ->first();
-            if (!$predefinedFormat) {
-                return back()->with('error', 'No se encontró un formato predeterminado por defecto para esta plantilla.');
-            }
-        }
-
-        // --- PREPARAR $dataForFilling combinando datos normalizados y JSON ---
-        $dataForFilling = [];
-
-        // 1. Datos genéricos (ej. del usuario autenticado)
-        $dataForFilling['rpe_empleado'] = Auth::user()->rpe;
-        $dataForFilling['nombre_empleado'] = Auth::user()->name;
-        $dataForFilling['fecha_actual'] = now()->format('d/m/Y'); // Ejemplo de dato automático
-
-        // 2. Datos de claves foráneas de TemplatePrefilledData
-        // (Asumiendo que TemplatePrefilledData tiene FKs como tag_id, unidad_id y que tú los buscas aquí)
-        if ($predefinedFormat->tag_id) { // Si tienes un campo tag_id en TemplatePrefilledData
-             $tag = \App\Models\Tag::find($predefinedFormat->tag_id); // Asegúrate de importar el modelo Tag
-             if ($tag) {
-                 $dataForFilling['tag_instrumento'] = $tag->tag; // 'tag' es el nombre de la columna en tu tabla tags
-             }
-        }
-        if ($predefinedFormat->unidad_id) { // Si tienes un campo unidad_id
-            $unidad = \App\Models\Unidad::find($predefinedFormat->unidad_id); // Asegúrate de importar el modelo Unidad
-            if ($unidad) {
-                $dataForFilling['unidad_maquina'] = $unidad->name; // Asumiendo 'name' en tabla unidades
-            }
-        }
-        // ... Repite para otros campos genéricos como sistema_id, servicio_id
-
-        // 3. Datos únicos de $predefinedFormat->data_json (este es el JSON #2)
-        if ($predefinedFormat->data_json) {
-            $dataForFilling = array_merge($dataForFilling, $predefinedFormat->data_json);
-        }
-        // --- FIN DE LA PREPARACIÓN ---
-
-        try {
-            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable');
-            return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $template->name]);
-        } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
-        }
-    }
-
-    /**
      * Muestra el formulario para que el usuario personalice los datos de una plantilla.
      * @param Template $template La instancia del modelo de plantilla.
      * @return \Illuminate\View\View
      */
     public function showCustomizeForm(Template $template) // Route Model Binding para Template
     {
-        // Puedes pasar la plantilla a la vista para construir el formulario dinámicamente
-        // o cargar un 'data_json' base de un predefined_format si el usuario parte de ahí
         return view('documents.customize_form', compact('template'));
     }
 
@@ -269,11 +245,6 @@ class DocumentGenerationController extends Controller
         $dataForFilling['rpe_empleado'] = Auth::user()->rpe;
         $dataForFilling['nombre_empleado'] = Auth::user()->name;
         $dataForFilling['fecha_actual'] = now()->format('d/m/Y');
-        // ... otros datos que necesites y que no estén en el formulario pero sí en la plantilla ...
-        // Por ejemplo, si el formulario solo da el ID de un tag, aquí buscarías el nombre
-        // $tag = \App\Models\Tag::find($request->input('tag_id'));
-        // if ($tag) $dataForFilling['tag_instrumento'] = $tag->tag;
-        // --- FIN DE LA PREPARACIÓN ---
 
         try {
             $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable'); // O 'public_editable'

@@ -3,13 +3,13 @@
 
 @section('content')
 <div class="container">
-    <h1>Crear Formato Predeterminado para {{ $template->name }}</h1>
+    <h1>Crear Formato Predeterminado para {{ $prefilledData->name }}</h1>
 
-    <form method="POST" action="{{ route('admin.templates.prefilled-data.update', $template->id) }}">
+    <form method="POST" action="{{ route('admin.templates.prefilled-data.update', $prefilledData->id) }}">
         @csrf
         @method('PUT')
         
-        <input type="hidden" name="template_id" value="{{ $template->id }}">
+        <input type="hidden" name="template_id" value="{{ $prefilledData->id }}">
 
         <div class="mb-3">
             <label for="name" class="form-label">Nombre del Formato:</label>
@@ -53,7 +53,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary">Guardar Formato Predeterminado</button>
-        <a href="{{ route('admin.templates.edit', $template->id) }}" class="btn btn-secondary">Cancelar</a>
+        <a href="{{ route('admin.templates.edit', $prefilledData->id) }}" class="btn btn-secondary">Cancelar</a>
     </form>
 </div>
 @endsection
