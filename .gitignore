@@ -25,3 +25,6 @@ npm-debug.log
 Thumbs.db
 yarn-error.log
 /.idx
+composer.lock
+package-lock.json
+public/.cache/motd.legal-displayed
