@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Template; // Modelo de la plantilla
 use App\Models\TemplatePrefilledData; // Tu modelo de datos prellenados
-use Illuminate\Http\Reques
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB; // Para transacciones
 
