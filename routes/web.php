@@ -22,13 +22,8 @@ use App\Http\Controllers\UserPrefilledDataController; // ¡Importa el nuevo cont
 
 // Rutas de Usuarios (accesibles por todos los autenticados)
 Route::middleware(['auth'])->group(function () {
-    // ... tus otras rutas de usuario (templates.index, documents.generate.*, etc.) ...
 
-    // Rutas para el listado de formatos prellenados para usuarios
     Route::get('/prefilled-data', [UserPrefilledDataController::class, 'index'])->name('prefilled-data.index');
-
-    // La ruta para generar documentos predefinidos ya está en DocumentGenerationController
-    // Route::post('/documents/generate/predefined', [DocumentGenerationController::class, 'generatePredefined'])->name('documents.generate.predefined');
 });
 // routes/web.php (o routes/api.php)
 Route::middleware(['auth'])->prefix('api/lookup')->group(function () {
@@ -100,6 +95,7 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/home', [HomeController::class, 'index'])->name('home');
+Route::get('/settings', [HomeController::class, 'settings'])->name('settings');
 
 Route::middleware(['auth'])->group(function () {
     // ... tus otras rutas de usuario (templates.index, documents.generate.*, etc.) ...
@@ -140,6 +136,7 @@ Route::middleware(['auth'])->group(function () {
     // Menú principal de plantillas
     Route::get('/templates', [TemplateController::class, 'index'])->name('templates.index');
 
+    Route::get('/templates/{template}/qr-pdf', [DocumentGenerationController::class, 'generateQrPdf'])->name('templates.generate_qr_pdf');
     // Rutas para generar documentos (POST)
     Route::post('/documents/generate/blank', [DocumentGenerationController::class, 'generateBlank'])->name('documents.generate.blank');
     Route::post('/documents/generate/predefined', [DocumentGenerationController::class, 'generatePredefined'])->name('documents.generate.predefined');

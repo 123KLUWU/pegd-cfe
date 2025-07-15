@@ -163,14 +163,9 @@
                   Inicio
               </a>
             </li>
+            {{-- 
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.templates.prefilled-data.index') }}">
-                <svg class="bi"><use xlink:href="#file-earmark"/></svg>
-                prelle p
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('prefilled-data.index') }}">
+              <a class="nav-link d-flex align-items-center gap-2" href="">
                 <svg class="bi"><use xlink:href="#cart"/></svg>
                 Prelle p m
               </a>
@@ -188,10 +183,11 @@
                 Integrations
               </a>
             </li>
+             --}}
           </ul>
 
           <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-body-secondary text-uppercase">
-            <span>Saved reports</span>
+            <span>Documentos</span>
             <a class="link-secondary" href="#" aria-label="Add a new report">
               <svg class="bi"><use xlink:href="#plus-circle"/></svg>
             </a>
@@ -206,21 +202,23 @@
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('templates.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark-text"/></svg>
-                  Hojas de calibración
+                  Hojas de calibración (vacias)
               </a>
             </li>
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="#">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('prefilled-data.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark-text"/></svg>
-                Social engagement
+                  Hojas de calibración (Prellenadas)
               </a>
             </li>
+            {{-- 
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="#">
                 <svg class="bi"><use xlink:href="#file-earmark-text"/></svg>
                 Year-end sale
               </a>
             </li>
+             --}}
           </ul>
 
           @role('admin')
@@ -248,12 +246,18 @@
                   Plantillas
               </a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.templates.prefilled-data.index') }}">
+                <svg class="bi"><use xlink:href="#file-earmark"/></svg>
+                 Prellenados
+              </a>
+            </li>
           </ul>
           @endrole
           <hr class="my-3">
           <ul class="nav flex-column mb-auto">
             <li class="nav-item">
-              <a class="nav-link d-flex align-items-center gap-2" href="#">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('settings') }}">
                 <svg class="bi"><use xlink:href="#gear-wide-connected"/></svg>
                 Settings
               </a>

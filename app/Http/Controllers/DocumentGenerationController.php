@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\Auth;
 use Spatie\Activitylog\Models\Activity; // Para logs
 use Google\Service\Drive\Permission; // Para permisos de Drive
 use Google\Service\Sheets\ValueRange; // Para Sheets
-
+use App\Models\Diagram; // Tu modelo Diagram
+use Illuminate\Support\Facades\Storage; // Para servir archivos
+use SimpleSoftwareIO\QrCode\Facades\QrCode; // Para generar QR
+use Barryvdh\DomPDF\Facade\Pdf; // ¡Importa la fachada de DomPDF!
+use Illuminate\Support\Str;
 // Importaciones de Google Docs
 use Google\Service\Docs\BatchUpdateDocumentRequest;
 use Google\Service\Docs\Request as GoogleDocsRequest;
@@ -211,7 +215,25 @@ class DocumentGenerationController extends Controller
             return back()->with('error', $e->getMessage());
         }
     }
+    public function generateQrPdf(Template $template)
+    {
+        // URL a la que apuntará el QR (la ruta protegida para servir el archivo)
+        $qrContentUrl = route('documents.generate.blank', $template->id);
+        // https://es.stackoverflow.com/questions/309482/integraci%c3%b3n-laravel-dompdf-y-qrcode-simplesoftwareio
+        // Generar el código QR como SVG (es vectorial y de alta calidad para PDF)
+        $qrSvg = QrCode::size(200)->format('svg')->generate($qrContentUrl);
 
+        // Preparar los datos para la vista Blade del PDF
+        $data = [
+            'diagramName' => $template->name,
+            'diagramDescription' => $template->description,
+            'machineCategory' => "0",
+            'qrCodeSvg' => $qrSvg,
+            'qrContentUrl' => $qrContentUrl,
+        ];
+        $pdf = Pdf::loadView('diagrams.qr_pdf_template', $data);
+        return $pdf->stream('qr_diagrama_' . Str::slug($template->name) . '.pdf');
+    }
     /**
      * Muestra el formulario para que el usuario personalice los datos de una plantilla.
      * @param Template $template La instancia del modelo de plantilla.
