@@ -76,7 +76,9 @@
                             @if($template->office_file_path)
                                 <a href="{{ route('templates.download_office', $template->id) }}" class="btn btn-outline-secondary btn-sm mb-2">Descargar {{ strtoupper($template->type) == 'DOCS' ? 'DOCX' : 'XLSX' }}</a>
                             @endif
-
+                            <p class="text-center mt-3">
+                                <a href="{{ route('templates.generate_qr_pdf', $template->id) }}" class="btn btn-outline-secondary btn-sm mb-2" target="_blank">Imprimir QR en PDF</a>
+                            </p>
                             {{-- Nota: Opciones de Admin ya no van aquí --}}
                         </div>
                     </div>
