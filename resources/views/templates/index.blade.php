@@ -53,33 +53,52 @@
             <div class="col-md-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body">
+                                                {{-- Miniatura de la Plantilla --}}
+                        <div class="template-thumbnail-container text-center my-3" style="width: 100%; height: 120px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; border-radius: .25rem;">
+                            @if($template->thumbnail_link)
+                                {{-- Usar object-fit: cover; para que la imagen llene el espacio y se recorte --}}
+                                {{-- ¡NUEVO!: object-position: top; para enfocar la parte superior --}}
+                                <img src="{{ $template->thumbnail_link }}" alt="Miniatura de {{ $template->name }}" 
+                                     class="img-fluid rounded" 
+                                     style="width: 100%; height: 100%; object-fit: cover; object-position: top;">
+                            @else
+                                <div class="text-muted small">Miniatura no disponible</div>
+                            @endif
+                        </div>
                         <h5 class="card-title">{{ $template->name }}</h5>
                         <p class="card-text">{{ Str::limit($template->description, 80) ?? 'Sin descripción.' }}</p>
+                        
                         <p class="card-text"><small class="text-muted">Tipo: {{ ucfirst($template->type) }}</small></p>
                         @if ($template->category)
                             <p class="card-text"><small class="text-muted">Categoría: {{ $template->category->name }}</small></p>
                         @endif
-
+                        
                         <div class="mt-3 d-flex flex-wrap justify-content-between align-items-center">
-                            
-                            {{-- Botón Consolidado: "Generar Documento" --}}
-                            <form action="{{ route('documents.generate.blank') }}" method="POST">
-                                @csrf
-                                <input type="hidden" name="template_id" value="{{ $template->id }}">
-                                <button type="submit" class="btn btn-primary btn-sm mb-2 me-2">Generar Documento</button>
-                            </form>
+                            {{-- Botón Principal: Generar Documento --}}
+                            <a href="{{ route('documents.customize.form', $template->id) }}" target="_blank" class="btn btn-primary btn-sm mb-2 me-2">Generar Documento</a>
 
-                            {{-- Botones de Descarga Directa (para usuario) --}}
-                            @if($template->pdf_file_path)
-                                <a href="{{ route('templates.show_pdf_preview', $template->id) }}" target="_blank" class="btn btn-outline-info btn-sm mb-2 me-2">Ver PDF</a>
-                            @endif
-                            @if($template->office_file_path)
-                                <a href="{{ route('templates.download_office', $template->id) }}" class="btn btn-outline-secondary btn-sm mb-2">Descargar {{ strtoupper($template->type) == 'DOCS' ? 'DOCX' : 'XLSX' }}</a>
-                            @endif
-                            <p class="text-center mt-3">
-                                <a href="{{ route('templates.generate_qr_pdf', $template->id) }}" class="btn btn-outline-secondary btn-sm mb-2" target="_blank">Imprimir QR en PDF</a>
-                            </p>
-                            {{-- Nota: Opciones de Admin ya no van aquí --}}
+                            {{-- Botón "3 Puntitos" (Dropdown de Opciones Secundarias) --}}
+                            <div class="dropdown mb-2">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton_{{ $template->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="visually-hidden">Más Opciones</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-three-dots-vertical" viewBox="0 0 16 16">
+                                        <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                                    </svg>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton_{{ $template->id }}">
+                                    {{-- Opción 1: Ver PDF --}}
+                                    @if($template->pdf_file_path)
+                                        <li><a class="dropdown-item" href="{{ route('templates.show_pdf_preview', $template->id) }}" target="_blank">Ver PDF</a></li>
+                                    @endif
+                                    {{-- Opción 2: Descargar XLSX/DOCX --}}
+                                    @if($template->office_file_path)
+                                        <li><a class="dropdown-item" href="{{ route('templates.download_office', $template->id) }}" target="_blank">Descargar {{ strtoupper($template->type) == 'DOCS' ? 'DOCX' : 'XLSX' }}</a></li>
+                                    @endif
+                                    {{-- Opción 3: Abrir Plantilla Original en Google Drive --}}
+                                    <li><a class="dropdown-item" href="{{ route('templates.generate_qr_pdf', $template->id) }}" target="_blank">Imprimir QR en PDF</a></li>
+                                    {{-- Aquí podrías añadir más opciones si las necesitas en el futuro --}}
+                                </ul>
+                            </div>
                         </div>
                     </div>
                 </div>

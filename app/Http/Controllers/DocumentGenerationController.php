@@ -218,7 +218,7 @@ class DocumentGenerationController extends Controller
     public function generateQrPdf(Template $template)
     {
         // URL a la que apuntará el QR (la ruta protegida para servir el archivo)
-        $qrContentUrl = route('documents.generate.blank', $template->id);
+        $qrContentUrl = route('documents.customize.form', $template->id);
         // https://es.stackoverflow.com/questions/309482/integraci%c3%b3n-laravel-dompdf-y-qrcode-simplesoftwareio
         // Generar el código QR como SVG (es vectorial y de alta calidad para PDF)
         $qrSvg = QrCode::size(200)->format('svg')->generate($qrContentUrl);
@@ -291,6 +291,6 @@ class DocumentGenerationController extends Controller
             return redirect()->route('templates.index')->with('error', 'No se encontró un documento generado recientemente.');
         }
 
-        return view('documents.generated_success', compact('docLink', 'docTitle'));
+        return redirect()->away($docLink);
     }
 }

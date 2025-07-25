@@ -559,4 +559,22 @@ class TemplateController extends Controller
         // Laravel automáticamente establecerá el Content-Type adecuado (application/pdf)
         return response()->file($path);
     }
+    // app/Http/Controllers/Admin/TemplateController.php
+
+    // ... (asegúrate de que GoogleDriveService esté importado y en el constructor) ...
+
+    protected function getTemplateThumbnailLink(Template $template): ?string
+    {
+        try {
+            $driveService = $this->googleService->getDriveService();
+            $file = $driveService->files->get($template->google_drive_id, ['fields' => 'thumbnailLink']);
+            return $file->getThumbnailLink();
+        } catch (\Google\Service\Exception $e) {
+            Log::warning("No se pudo obtener miniatura para plantilla ID: {$template->id}. Error: {$e->getMessage()}");
+            return null;
+        } catch (\Exception $e) {
+            Log::error("Error inesperado al obtener miniatura para plantilla ID: {$template->id}: {$e->getMessage()}");
+            return null;
+        }
+    }
 }
