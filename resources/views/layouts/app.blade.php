@@ -211,6 +211,12 @@
                   Hojas de calibración (Prellenadas)
               </a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('user.generated-documents.index') }}">
+                <svg class="bi"><use xlink:href="#file-earmark-text"/></svg>
+                  Hojas generadas por usuario
+              </a>
+            </li>
             {{-- 
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="#">
@@ -248,6 +254,12 @@
             </li>
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.templates.prefilled-data.index') }}">
+                <svg class="bi"><use xlink:href="#file-earmark"/></svg>
+                 Prellenados
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('generated-documents.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark"/></svg>
                  Prellenados
               </a>

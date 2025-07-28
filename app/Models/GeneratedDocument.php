@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes; // For soft deletes
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class GeneratedDocument extends Model
 {
-    use HasFactory, SoftDeletes; // Use SoftDeletes trait
+    use HasFactory, SoftDeletes, LogsActivity; // Use SoftDeletes trait
 
     protected $fillable = [
         'google_drive_id',
@@ -30,15 +32,23 @@ class GeneratedDocument extends Model
         'visibility_status' => 'string', // Or an Enum type if you define it
     ];
 
-    // Relationship to the User who generated it
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id');
     }
 
-    // Relationship to the Template used
+    // Relación con la plantilla utilizada
     public function template()
     {
         return $this->belongsTo(Template::class);
+    }
+
+    // Configuración para spatie/laravel-activitylog
+    public function getActivitylogOptions(): LogOptions // Asegúrate de importar LogOptions
+    {
+        return LogOptions::defaults()
+            ->logFillable() // Registra los cambios en los campos fillable
+            ->logOnlyDirty() // Solo si hay cambios
+            ->dontSubmitEmptyLogs(); // No registra si no hay cambios
     }
 }

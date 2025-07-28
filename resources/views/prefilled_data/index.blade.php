@@ -47,18 +47,41 @@
             <div class="col-md-4 mb-4">
                 <div class="card h-100">
                     <div class="card-body">
+                                                {{-- Miniatura de la Plantilla Asociada --}}
+                                                <div class="template-thumbnail-container text-center my-3" style="width: 100%; height: 120px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; border-radius: .25rem;">
+                                                    @if($data->template && $data->template->thumbnail_link)
+                                                        <img src="{{ $data->template->thumbnail_link }}" alt="Miniatura de {{ $data->template->name }}" 
+                                                             class="img-fluid rounded" 
+                                                             style="width: 100%; height: 100%; object-fit: cover; object-position: top;">
+                                                    @else
+                                                        <div class="text-muted small">Miniatura no disponible</div>
+                                                    @endif
+                                                </div>
                         <h5 class="card-title">{{ $data->name }}</h5>
                         <p class="card-text"><small class="text-muted">Plantilla: {{ $data->template->name ?? 'N/A' }} ({{ ucfirst($data->template->type ?? '') }})</small></p>
                         <p class="card-text">{{ Str::limit($data->description, 80) ?? 'Sin descripción.' }}</p>
-                        
+
                         <div class="mt-3 d-flex flex-wrap justify-content-between align-items-center">
                             {{-- Botón para Generar Documento con este formato prellenado --}}
                             <form action="{{ route('documents.generate.predefined') }}" method="POST" class="d-inline">
                                 @csrf
                                 <input type="hidden" name="prefilled_data_id" value="{{ $data->id }}">
-                                <button type="submit" class="btn btn-success btn-sm mb-2 me-2">Generar Documento</button>
+                                <button type="submit" class="btn btn-success btn-sm mb-2 me-2" target="_blank" >Generar Documento</button>
                             </form>
-
+                                                        {{-- Botón "3 Puntitos" (Dropdown de Opciones Secundarias) --}}
+                            <div class="dropdown mb-2">
+                                <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton_{{ $template->id }}" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="visually-hidden">Más Opciones</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-three-dots-vertical" viewBox="0 0 16 16">
+                                        <path d="M9.5 13a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm0-5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                                    </svg>
+                                </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton_{{ $data->id }}">
+                                {{-- Opción 1: Abrir Plantilla Original en Google Drive --}}
+                                <li><a class="dropdown-item" href="{{ route('predefined.generate_qr_pdf', $data->id) }}" target="_blank">Imprimir QR en PDF</a></li>
+                                {{-- Aquí podrías añadir más opciones si las necesitas en el futuro --}}
+                            </ul>
+                        </div>
                             {{-- Opcional: Ver detalles del JSON (solo para depuración o admin) --}}
                             {{-- <button type="button" class="btn btn-sm btn-outline-secondary mb-2" data-bs-toggle="modal" data-bs-target="#dataJsonModal" data-json="{{ json_encode($data->data_json) }}">Ver Datos</button> --}}
                         </div>
