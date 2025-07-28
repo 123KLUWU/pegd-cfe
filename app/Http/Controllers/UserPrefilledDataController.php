@@ -96,5 +96,24 @@ class UserPrefilledDataController extends Controller
             return null;
         }
     }
+    public function generateQrPdf(TemplatePrefilledData $TemplatePrefilledData)
+    {
+        // URL a la que apuntará el QR (la ruta protegida para servir el archivo)
+        $qrContentUrl = route('documents.customize.form', $TemplatePrefilledData->id);
+        // https://es.stackoverflow.com/questions/309482/integraci%c3%b3n-laravel-dompdf-y-qrcode-simplesoftwareio
+        // Generar el código QR como SVG (es vectorial y de alta calidad para PDF)
+        $qrSvg = QrCode::size(200)->format('svg')->generate($qrContentUrl);
+
+        // Preparar los datos para la vista Blade del PDF
+        $data = [
+            'diagramName' => $TemplatePrefilledData->name,
+            'diagramDescription' => $TemplatePrefilledData->description,
+            'machineCategory' => "0",
+            'qrCodeSvg' => $qrSvg,
+            'qrContentUrl' => $qrContentUrl,
+        ];
+        $pdf = Pdf::loadView('diagrams.qr_pdf_template', $data);
+        return $pdf->stream('qr_diagrama_' . Str::slug($TemplatePrefilledData->name) . '.pdf');
+    }
     
 }

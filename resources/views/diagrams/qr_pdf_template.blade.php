@@ -32,6 +32,8 @@ https://es.stackoverflow.com/questions/309482/integraci%c3%b3n-laravel-dompdf-y-
         <div class="footer">
             <p>Generado por PEGD-CFE el {{ now()->format('d/m/Y H:i') }}</p>
         </div>
+        <p>Usuario: pdf01</p>
+        <p>Contraseña: ctpalm2113</p>
     </div>
 </body>
 </html>
