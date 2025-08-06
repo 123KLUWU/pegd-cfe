@@ -17,9 +17,12 @@ use Illuminate\Support\Facades\Storage; // Para servir archivos
 use SimpleSoftwareIO\QrCode\Facades\QrCode; // Para generar QR
 use Barryvdh\DomPDF\Facade\Pdf; // ¡Importa la fachada de DomPDF!
 use Illuminate\Support\Str;
+use App\Models\Tag;
+use App\Models\Unidad;
 // Importaciones de Google Docs
 use Google\Service\Docs\BatchUpdateDocumentRequest;
 use Google\Service\Docs\Request as GoogleDocsRequest;
+use Google\Service\Exception as GoogleServiceException;
 
 class DocumentGenerationController extends Controller
 {
@@ -40,9 +43,9 @@ class DocumentGenerationController extends Controller
      * @param array $dataForFilling Los datos asociativos a usar para prellenar (clave => valor).
      * @param string $visibilityStatus El estado de visibilidad deseado ('public_editable', 'public_viewable', 'private_restricted').
      * @return string La URL del documento generado.
-     * @throws \Exception Si ocurre un error durante la generación.
+     * @throws Exception Si ocurre un error durante la generación.
      */
-    protected function generateDocument(Template $template, array $dataForFilling, string $visibilityStatus = 'public_editable'): string
+    protected function generateDocument(Template $template, array $dataForFilling, string $visibilityStatus = 'public_editable', ?int $instrumentoTagId = null, ?int $unidadId = null, ?int $prefilledDataId = null): string
     {
         try {
             $docsService = $this->googleService->getDocsService();
@@ -107,6 +110,9 @@ class DocumentGenerationController extends Controller
                 'google_drive_id' => $newGoogleDriveId,
                 'user_id' => Auth::id(),
                 'template_id' => $template->id,
+                'instrumento_tag_id' => $instrumentoTagId,
+                'unidad_id' => $unidadId,
+                'prefilled_data_id' => $prefilledDataId,
                 'title' => $newDocTitle,
                 'type' => $template->type,
                 'visibility_status' => $visibilityStatus,
@@ -116,6 +122,13 @@ class DocumentGenerationController extends Controller
                 'data_values_json' => $dataForFilling,
             ]);
 
+            if ($instrumentoTagId) {
+                $instrumento = Tag::find($instrumentoTagId); // Buscar el instrumento por su ID
+                if ($instrumento) {
+                    $instrumento->last_calibration_date = now();
+                    $instrumento->save();
+                }
+            }
             // 5. Log de Actividad
             activity()
                 ->performedOn($generatedDoc)
@@ -130,14 +143,31 @@ class DocumentGenerationController extends Controller
 
                 return 'https://docs.google.com/' . $template->type . '/d/' . $newGoogleDriveId . '/edit';
 
-        } catch (\Google\Service\Exception $e) {
-            $errorDetails = json_decode($e->getMessage(), true);
-            $message = $errorDetails['error']['message'] ?? $e->getMessage();
-            Log::error('Error de API de Google al generar documento: ' . $message, ['user_id' => Auth::id(), 'template_id' => $template->id]);
-            throw new \Exception('Error al comunicarse con Google API: ' . $message);
-        } catch (\Exception $e) {
-            Log::error('Error inesperado al generar documento: ' . $e->getMessage(), ['user_id' => Auth::id(), 'template_id' => $template->id]);
-            throw new \Exception('Error inesperado al generar el documento: ' . $e->getMessage());
+        } catch (GoogleServiceException $e) { // <-- ¡CAMBIO AQUÍ: Usar el alias de importación!
+            // Captura y loggea la excepción específica de Google Service
+            $errorDetails = json_decode($e->getMessage(), true); // Intenta decodificar el mensaje como JSON
+            $loggedMessage = 'Error de Google API: ' . ($errorDetails['error']['message'] ?? $e->getMessage());
+            $specificErrors = $errorDetails['error']['errors'] ?? []; // Errores más específicos si existen
+
+            Log::error($loggedMessage, [
+                'user_id' => Auth::id(),
+                'template_id' => $template->id,
+                'google_error_code' => $e->getCode(),
+                'google_error_status' => $errorDetails['error']['status'] ?? 'N/A',
+                'google_api_errors' => $specificErrors,
+                'exception_trace' => $e->getTraceAsString(), // Trazado completo de la excepción
+            ]);
+
+            // Lanza una excepción con un mensaje más amigable para el usuario
+            throw new Exception('Error al comunicarse con Google API: ' . ($errorDetails['error']['message'] ?? 'Detalles en logs.'));
+        } catch (Exception $e) {
+            // Catch-all para otras excepciones inesperadas
+            Log::error('Error inesperado al generar documento: ' . $e->getMessage(), [
+                'user_id' => Auth::id(),
+                'template_id' => $template->id,
+                'exception_trace' => $e->getTraceAsString(),
+            ]);
+            throw new Exception('Error inesperado al generar el documento: ' . $e->getMessage());
         }
     }
 
@@ -147,10 +177,12 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'prefilled_data_id' => ['required', 'exists:template_prefilled_data,id'],
+            'unidad_id' => ['required', 'exists:unidades,id'], // Added validation for unidad_id
         ]);
 
         $prefilledData = TemplatePrefilledData::findOrFail($request->prefilled_data_id);
         $template = $prefilledData->template; // Obtiene la plantilla asociada al formato prellenado
+        $unidadId = $request->input('unidad_id'); // Get unidad_id from request
 
         if (!$template || !$template->is_active || $template->trashed()) {
             return back()->with('error', 'La plantilla asociada a este formato prellenado no es válida o no está activa.');
@@ -168,29 +200,37 @@ class DocumentGenerationController extends Controller
         // Asume que TemplatePrefilledData tiene FKs como tag_id, unidad_id y que tú los buscas aquí.
         // Asegúrate de que los modelos Tag, Unidad, etc., estén importados o se resuelvan.
         if ($prefilledData->tag_id) {
-             $tag = \App\Models\Tag::find($prefilledData->tag_id);
+             $tag = Tag::find($prefilledData->tag_id);
              if ($tag) {
                  $dataForFilling['tag_instrumento'] = $tag->tag;
              }
         }
-        if ($prefilledData->unidad_id) {
-            $unidad = \App\Models\Unidad::find($prefilledData->unidad_id);
-            if ($unidad) {
-                $dataForFilling['unidad_maquina'] = $unidad->name;
-            }
-        }
-        // ... Repite para otros campos genéricos como sistema_id, servicio_id
-
+        // Remove this section as unidad_id now comes from the request
+        // if ($prefilledData->unidad_id) {
+        //     $unidad = Unidad::find($prefilledData->unidad_id);
+        //     if ($unidad) {
+        //         $dataForFilling['unidad_maquina'] = $unidad->name;
+        //     }
+        // }
+        
         // 3. Datos únicos del JSON 'data_json' (este es el JSON #2)
         if ($prefilledData->data_json) {
             $dataForFilling = array_merge($dataForFilling, $prefilledData->data_json);
         }
+        // Add unidad_nombre to dataForFilling using the unidadId from the request
+        if ($unidadId) {
+            $unidad = Unidad::find($unidadId);
+            if ($unidad) {
+                $dataForFilling['unidad_nombre'] = $unidad->name;
+            }
+        }
         // --- FIN DE LA PREPARACIÓN ---
 
         try {
-            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable');
+            $instrumentoTagId = $request->input('instrumento_tag_id');
+            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable', $instrumentoTagId, $unidadId, $prefilledData->id); // Pass unidadId to generateDocument
             return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $prefilledData->name]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return back()->with('error', 'Hubo un error al generar el documento. ' . $e->getMessage());
         }
     }
@@ -204,17 +244,25 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
+            'unidad_id' => ['required', 'exists:unidades,id'],
         ]);
         $template = Template::findOrFail($request->template_id); // Encuentra la plantilla por ID
+        $unidadId = $request->input('unidad_id');
+
+        $instrumentoTagId = null;
+        $prefilledDataId = null;
+
+        $dataForFilling = [];
 
         try {
             // Llama a la función helper de generación, sin datos específicos para prellenar
-            $docLink = $this->generateDocument($template, [], 'public_editable'); // O 'public_viewable' si quieres que sea visible
+            $docLink = $this->generateDocument($template, [], 'public_editable', $instrumentoTagId, $unidadId); // Pass unidadId to generateDocument
             return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $template->name]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return back()->with('error', $e->getMessage());
         }
     }
+
     public function generateQrPdf(Template $template)
     {
         // URL a la que apuntará el QR (la ruta protegida para servir el archivo)
@@ -231,7 +279,7 @@ class DocumentGenerationController extends Controller
             'qrCodeSvg' => $qrSvg,
             'qrContentUrl' => $qrContentUrl,
         ];
-        $pdf = Pdf::loadView('diagrams.qr_pdf_template', $data);
+        $pdf = Pdf::loadView('qr.document_qr', $data);
         return $pdf->stream('qr_diagrama_' . Str::slug($template->name) . '.pdf');
     }
     /**
@@ -241,7 +289,9 @@ class DocumentGenerationController extends Controller
      */
     public function showCustomizeForm(Template $template) // Route Model Binding para Template
     {
-        return view('documents.customize_form', compact('template'));
+        $instrumentos = Tag::all();
+        $unidades = Unidad::all(); // <-- Obtener todas las unidades
+        return view('documents.customize_form', compact('template', 'instrumentos', 'unidades'));
     }
 
     /**
@@ -253,26 +303,45 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
-            // Agrega aquí reglas de validación para los campos que el usuario personaliza
-            // ej. 'tag_instrumento' => ['required', 'string', 'max:255'],
-            // 'rango_min_operativo' => ['nullable', 'numeric'],
+            'unidad_id' => ['required', 'exists:unidades,id'], // <-- AÑADE VALIDACIÓN
+            'instrumento_tag_id' => ['nullable', 'exists:tags,id'], // <-- AÑADE VALIDACIÓN
+            // ... (otras validaciones de campos personalizados) ...
         ]);
 
         $template = Template::findOrFail($request->template_id);
+        $unidadId = $request->input('unidad_id');
+        $instrumentoTagId = $request->input('instrumento_tag_id');
+        $prefilledDataId = null; // No hay prellenado si es personalizado
 
-        // --- PREPARAR $dataForFilling con los datos del formulario y genéricos ---
-        $dataForFilling = $request->except(['_token', 'template_id']); // Datos directamente del formulario
+        // --- PREPARACIÓN DE $dataForFilling con los datos del formulario y genéricos ---
+        $dataForFilling = $request->except(['_token', 'template_id', 'unidad_id', 'instrumento_tag_id']);
 
-        // Añade aquí datos genéricos que no vienen del formulario pero sí de la DB/Usuario
         $dataForFilling['rpe_empleado'] = Auth::user()->rpe;
         $dataForFilling['nombre_empleado'] = Auth::user()->name;
         $dataForFilling['fecha_actual'] = now()->format('d/m/Y');
 
+        if ($unidadId) {
+            $unidad = Unidad::find($unidadId);
+            if ($unidad) {
+                $dataForFilling['unidad_nombre'] = $unidad->name; // Nombre de la unidad
+            }
+        }
+        if ($instrumentoTagId) {
+            $instrumento = Tag::find($instrumentoTagId);
+            if ($instrumento) {
+                $dataForFilling['instrumento_tag'] = $instrumento->tag;
+                $dataForFilling['instrumento_modelo'] = $instrumento->model ?? 'N/A';
+                $dataForFilling['instrumento_serial'] = $instrumento->serial_number ?? 'N/A';
+                $dataForFilling['instrumento_descripcion'] = $instrumento->description ?? 'N/A';
+            }
+        }
+
         try {
-            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable'); // O 'public_editable'
-            return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $template->name]);
-        } catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
+            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable', $instrumentoTagId, $unidadId, $prefilledDataId);
+            return response()->json(['success' => true, 'docLink' => $docLink, 'docTitle' => $template->name]);
+        } catch (Exception $e) {
+            Log::error('Error al generar documento personalizado: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => 'Hubo un error al generar el documento. ' . $e->getMessage()], 500);
         }
     }
 
@@ -292,5 +361,62 @@ class DocumentGenerationController extends Controller
         }
 
         return redirect()->away($docLink);
+    }
+
+    public function generatePredefinedByQr(Request $request)
+    {
+        $request->validate([
+            'prefilled_data_id' => ['required', 'exists:template_prefilled_data,id'],
+        ]);
+
+        $prefilledData = TemplatePrefilledData::findOrFail($request->prefilled_data_id);
+        $template = $prefilledData->template;
+
+        if (!$template || !$template->is_active || $template->trashed()) {
+            return redirect()->route('login')->with('error', 'La plantilla asociada a este formato prellenado no es válida o no está activa.');
+        }
+
+        // --- PREPARACIÓN DE $dataForFilling ---
+        $dataForFilling = [];
+
+        $dataForFilling['rpe_empleado'] = Auth::user()->rpe ?? 'QR_SCANNER';
+        $dataForFilling['nombre_empleado'] = Auth::user()->name ?? 'Usuario QR';
+        $dataForFilling['fecha_actual'] = now()->format('d/m/Y');
+
+        // Aquí es donde JALAS los datos de las tablas maestras a través de las FKs del prellenado
+        $instrumentoTagId = $prefilledData->tag_id;
+        $unidadId = $prefilledData->unidad_id; // <-- OBTENER UNIDAD DEL PRELLENADO
+
+        // Cargar los modelos para obtener los nombres
+        if ($unidadId) {
+            $unidad = Unidad::find($unidadId);
+            if ($unidad) {
+                $dataForFilling['unidad_nombre'] = $unidad->name;
+            }
+        }
+        if ($instrumentoTagId) {
+            $instrumento = Tag::find($instrumentoTagId);
+            if ($instrumento) {
+                $dataForFilling['instrumento_tag'] = $instrumento->tag;
+                $dataForFilling['instrumento_modelo'] = $instrumento->model ?? 'N/A';
+                $dataForFilling['instrumento_serial'] = $instrumento->serial_number ?? 'N/A';
+                $dataForFilling['instrumento_descripcion'] = $instrumento->description ?? 'N/A';
+            }
+        }
+        // ... repite para tags, sistemas, servicios ...
+
+        // Mezcla los datos normalizados con el JSON del prellenado
+        if ($prefilledData->data_json) {
+            $dataForFilling = array_merge($dataForFilling, $prefilledData->data_json);
+        }
+        // --- FIN DE LA PREPARACIÓN ---
+
+        try {
+            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable', $instrumentoTagId, $unidadId, $prefilledData->id);
+            return redirect()->away($docLink);
+        } catch (Exception $e) {
+            Log::error('Error al generar documento por QR: ' . $e->getMessage());
+            return redirect()->route('login')->with('error', 'Hubo un error al generar el documento por QR. Por favor, inicia sesión y vuelve a intentarlo.');
+        }
     }
 }

@@ -16,6 +16,9 @@ class GeneratedDocument extends Model
         'google_drive_id',
         'user_id',
         'template_id',
+        'instrumento_tag_id',
+        'unidad_id',
+        'prefilled_data_id',
         'title',
         'type',
         'visibility_status',
@@ -36,13 +39,29 @@ class GeneratedDocument extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-
+    // Relación con el instrumento asociado (via la tabla 'tags')
+    public function instrumento()
+    {
+        return $this->belongsTo(Tag::class, 'instrumento_tag_id'); // Apunta al modelo Tag
+    }
+    
     // Relación con la plantilla utilizada
     public function template()
     {
         return $this->belongsTo(Template::class);
     }
+    // Relación con la unidad donde se generó
+    public function unidad()
+    {
+        return $this->belongsTo(Unidad::class); // Asumiendo que existe el modelo Unidad
+    }
 
+    // Relación con el formato de prellenado que se usó
+    public function prefilledData()
+    {
+        return $this->belongsTo(TemplatePrefilledData::class, 'prefilled_data_id'); // <-- NUEVA RELACIÓN
+    }
+    
     // Configuración para spatie/laravel-activitylog
     public function getActivitylogOptions(): LogOptions // Asegúrate de importar LogOptions
     {

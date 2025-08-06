@@ -8,6 +8,8 @@ use App\Models\TemplatePrefilledData; // Tu modelo de datos prellenados
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB; // Para transacciones
+use App\Models\Tag; // Importa el modelo Tag (que ahora es Instrumento)
+use App\Models\Unidad;
 
 class TemplatePrefilledDataController extends Controller
 {
@@ -70,19 +72,23 @@ class TemplatePrefilledDataController extends Controller
     public function create(Template $template) // Route Model Binding
     {
         // Opcional: Podrías pasar la plantilla a la vista
-        return view('admin.template_prefilled_data.create', compact('template'));
+        $instrumentos = unidad::all(); // Pasar instrumentos (Tags) a la vista
+        return view('admin.template_prefilled_data.create', compact('template', 'instrumentos'));
     }
 
     // Muestra el formulario para editar un conjunto de datos prellenados existente
     public function edit(TemplatePrefilledData $prefilledData) // Route Model Binding
     {
         // Accede a $prefilledData->data_json para mostrarlo en el formulario de edición
-        return view('admin.template_prefilled_data.edit', compact('prefilledData'));
+        $instrumentos = Tag::all(); // Pasar instrumentos (Tags) a la vista
+
+        return view('admin.template_prefilled_data.edit', compact('prefilledData', 'templates', 'instrumentos'));
     }
     public function store(Request $request)
     {
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
+            'instrumento_tag_id' => ['nullable', 'exists:tags,id'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             // Validar los arrays de claves y valores dinámicos
@@ -115,6 +121,8 @@ class TemplatePrefilledDataController extends Controller
             'data_json' => $dataJson, // Laravel lo guardará como JSON automáticamente
             'is_default_option' => $request->has('is_default_option'),
             'created_by_user_id' => Auth::id(),
+            'instrumento_tag_id' => $request->instrumento_tag_id, // <-- Guardar el ID del instrumento
+
             // ... otros FKs como tag_id, unidad_id si los manejas aquí directamente
         ]);
     });
@@ -134,6 +142,7 @@ class TemplatePrefilledDataController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'instrumento_tag_id' => ['nullable', 'exists:tags,id'],
             'data_json_raw' => ['required_without:dynamic_data_keys', 'nullable', 'json'],
             'dynamic_data_keys.*' => ['nullable', 'string', 'max:255'],
             'dynamic_data_values.*' => ['nullable', 'string'],
@@ -160,6 +169,7 @@ class TemplatePrefilledDataController extends Controller
                 'name' => $request->name,
                 'description' => $request->description,
                 'data_json' => $dataJson,
+                'instrumento_tag_id' => $request->instrumento_tag_id,
                 'is_default_option' => $request->has('is_default_option'),
             ]);
         });

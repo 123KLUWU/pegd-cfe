@@ -62,12 +62,16 @@
                         <p class="card-text">{{ Str::limit($data->description, 80) ?? 'Sin descripción.' }}</p>
 
                         <div class="mt-3 d-flex flex-wrap justify-content-between align-items-center">
-                            {{-- Botón para Generar Documento con este formato prellenado --}}
+                              {{-- Botón Principal: Generar Documento (APUNTA A LA PÁGINA DE CONFIRMACIÓN) --}}
+                              <a href="{{ route('prefilled-data.generate_confirmation_form', $data->id) }}" class="btn btn-success btn-sm mb-2 me-2 flex-grow-1">Generar Documento</a>
+
+                            {{-- Botón para Generar Documento con este formato prellenado 
                             <form action="{{ route('documents.generate.predefined') }}" method="POST" class="d-inline">
                                 @csrf
                                 <input type="hidden" name="prefilled_data_id" value="{{ $data->id }}">
                                 <button type="submit" class="btn btn-success btn-sm mb-2 me-2" target="_blank" >Generar Documento</button>
                             </form>
+                            --}}
                                                         {{-- Botón "3 Puntitos" (Dropdown de Opciones Secundarias) --}}
                             <div class="dropdown mb-2">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton_{{ $template->id }}" data-bs-toggle="dropdown" aria-expanded="false">

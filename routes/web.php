@@ -20,17 +20,22 @@ use App\Http\Controllers\ApiLookupController;
 use App\Http\Controllers\UserPrefilledDataController;
 use App\Http\Controllers\Admin\GeneratedDocumentController as AdminGeneratedDocumentController; // Alias para evitar conflicto
 use App\Http\Controllers\UserGeneratedDocumentController;
-
 // Rutas de Usuarios (accesibles por todos los autenticados)
 Route::middleware(['auth'])->group(function () {
 
+    Route::get('/prefilled-data', [UserPrefilledDataController::class, 'index'])->name('prefilled-data.index');
     // Rutas para los documentos generados por el usuario
     Route::get('/my-documents', [UserGeneratedDocumentController::class, 'index'])->name('user.generated-documents.index');
     Route::get('/my-documents/{generated_document}', [UserGeneratedDocumentController::class, 'show'])->name('user.generated-documents.show');
     Route::post('/my-documents/{generated_document}/delete', [UserGeneratedDocumentController::class, 'destroy'])->name('user.generated-documents.destroy');
     Route::post('/my-documents/{id}/restore', [UserGeneratedDocumentController::class, 'restore'])->name('user.generated-documents.restore');
 
+    Route::get('/prefilled-data/{prefilled_data}/generate-confirm', [UserPrefilledDataController::class, 'showGenerateConfirmationForm'])->name('prefilled-data.generate_confirmation_form');
+
+    Route::post('/documents/generate/predefined', [DocumentGenerationController::class, 'generatePredefined'])->name('documents.generate.predefined');
 });
+
+Route::get('/generate-by-qr/{prefilled_data_id}', [DocumentGenerationController::class, 'generatePredefinedByQr'])->name('documents.generate.predefined_by_qr');
 
 // Rutas de Administración de Documentos Generados
 Route::middleware(['auth', 'role:admin|permission:view all documents'])->prefix('admin')->group(function () {
@@ -43,12 +48,6 @@ Route::middleware(['auth', 'role:admin|permission:view all documents'])->prefix(
 
     // Ruta para cambiar la visibilidad de un documento
     Route::post('generated-documents/{generated_document}/change-visibility', [AdminGeneratedDocumentController::class, 'changeVisibility'])->name('admin.generated-documents.change_visibility');
-});
-// Rutas de Usuarios (accesibles por todos los autenticados)
-
-Route::middleware(['auth'])->group(function () {
-
-    Route::get('/prefilled-data', [UserPrefilledDataController::class, 'index'])->name('prefilled-data.index');
 });
 // routes/web.php (o routes/api.php)
 Route::middleware(['auth'])->prefix('api/lookup')->group(function () {
@@ -167,7 +166,7 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/documents/generate/blank', [DocumentGenerationController::class, 'generateBlank'])->name('documents.generate.blank');
     Route::post('/documents/generate/predefined', [DocumentGenerationController::class, 'generatePredefined'])->name('documents.generate.predefined');
     Route::post('/documents/generate/custom', [DocumentGenerationController::class, 'generateCustom'])->name('documents.generate.custom');
-    Route::get('/documents/{data}/qr-pdf', [UserPrefilledDataController::class, 'generateQrPdf'])->name('predefined.generate_qr_pdf');
+    Route::get('/documents/{TemplatePrefilledData}/qr-pdf', [UserPrefilledDataController::class, 'generateQrPdf'])->name('predefined.generate_qr_pdf');
     // Rutas para generar documentos (POST)
     // Ruta para mostrar el formulario de personalización (GET)
     // Usamos Route Model Binding para Template, asumiendo que el ID de la plantilla se pasa en la URL

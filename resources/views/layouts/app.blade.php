@@ -261,19 +261,20 @@
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('generated-documents.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark"/></svg>
-                 Prellenados
+                 Documentos generados
               </a>
             </li>
-          </ul>
-          @endrole
-          <hr class="my-3">
-          <ul class="nav flex-column mb-auto">
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('settings') }}">
                 <svg class="bi"><use xlink:href="#gear-wide-connected"/></svg>
                 Settings
               </a>
             </li>
+          </ul>
+          @endrole
+          <hr class="my-3">
+          <ul class="nav flex-column mb-auto">
+
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('logout') }}"
                   onclick="event.preventDefault();
