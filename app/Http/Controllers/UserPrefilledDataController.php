@@ -11,6 +11,8 @@ use App\Services\GoogleDriveService;
 use SimpleSoftwareIO\QrCode\Facades\QrCode; 
 use Barryvdh\DomPDF\Facade\Pdf; // ¡Importa la fachada de DomPDF!
 use Illuminate\Support\Str;
+use App\Models\Tag;
+use App\Models\Unidad;
 
 class UserPrefilledDataController extends Controller
 {
@@ -96,13 +98,15 @@ class UserPrefilledDataController extends Controller
             return null;
         }
     }
+    
     public function generateQrPdf(TemplatePrefilledData $TemplatePrefilledData)
     {
+        // dd($TemplatePrefilledData);
         // URL a la que apuntará el QR (la ruta protegida para servir el archivo)
-        $qrContentUrl = route('documents.customize.form', $TemplatePrefilledData->id);
+        $qrContentUrl = route('prefilled-data.generate_confirmation_form', $TemplatePrefilledData->id);
         // https://es.stackoverflow.com/questions/309482/integraci%c3%b3n-laravel-dompdf-y-qrcode-simplesoftwareio
         // Generar el código QR como SVG (es vectorial y de alta calidad para PDF)
-        $qrSvg = QrCode::size(200)->format('svg')->generate($qrContentUrl);
+        $qrSvg = QrCode::size(200)->format('svg')->generate($qrContentUrl); 
 
         // Preparar los datos para la vista Blade del PDF
         $data = [
@@ -115,5 +119,23 @@ class UserPrefilledDataController extends Controller
         $pdf = Pdf::loadView('diagrams.qr_pdf_template', $data);
         return $pdf->stream('qr_diagrama_' . Str::slug($TemplatePrefilledData->name) . '.pdf');
     }
-    
+
+    /**
+     * Muestra la página de confirmación antes de generar el documento predefinido.
+     * Aquí el usuario puede seleccionar el instrumento y confirmar la generación.
+     *
+     * @param TemplatePrefilledData $prefilledData
+     * @return \Illuminate\View\View
+     */
+    public function showGenerateConfirmationForm(TemplatePrefilledData $prefilledData)
+    {
+        if ($prefilledData->trashed() || !$prefilledData->template || !$prefilledData->template->is_active || $prefilledData->template->trashed()) {
+            abort(404, 'Formato prellenado o plantilla asociada no válida.');
+        }
+
+        $unidades = Unidad::all(); // Cargar todos los instrumentos para el selector
+        $instrumentos = Tag::all(); // Cargar todos los instrumentos para el selector
+
+        return view('prefilled_data.generate_confirmation', compact('prefilledData', 'instrumentos', 'unidades'));
+    }
 }
