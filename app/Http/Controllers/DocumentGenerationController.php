@@ -177,7 +177,7 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'prefilled_data_id' => ['required', 'exists:template_prefilled_data,id'],
-            'unidad_id' => ['required', 'exists:unidades,id'], // Added validation for unidad_id
+            'unidad_id' => ['nullable', 'exists:unidades,id'], // Added validation for unidad_id
         ]);
 
         $prefilledData = TemplatePrefilledData::findOrFail($request->prefilled_data_id);
@@ -244,7 +244,7 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
-            'unidad_id' => ['required', 'exists:unidades,id'],
+            'unidad_id' => ['nullable', 'exists:unidades,id'],
         ]);
         $template = Template::findOrFail($request->template_id); // Encuentra la plantilla por ID
         $unidadId = $request->input('unidad_id');
@@ -303,7 +303,7 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
-            'unidad_id' => ['required', 'exists:unidades,id'], // <-- AÑADE VALIDACIÓN
+            'unidad_id' => ['nullable', 'exists:unidades,id'], // <-- AÑADE VALIDACIÓN
             'instrumento_tag_id' => ['nullable', 'exists:tags,id'], // <-- AÑADE VALIDACIÓN
             // ... (otras validaciones de campos personalizados) ...
         ]);
