@@ -177,13 +177,13 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'prefilled_data_id' => ['required', 'exists:template_prefilled_data,id'],
-            'unidad_id' => ['nullable', 'exists:unidades,id'], // Added validation for unidad_id
+            'unidad_id' => ['required', 'exists:unidades,id'], // Added validation for unidad_id
         ]);
 
         $prefilledData = TemplatePrefilledData::findOrFail($request->prefilled_data_id);
         $template = $prefilledData->template; // Obtiene la plantilla asociada al formato prellenado
         $unidadId = $request->input('unidad_id'); // Get unidad_id from request
-
+        $instrumentoTagId = $prefilledData->tag_id;
         if (!$template || !$template->is_active || $template->trashed()) {
             return back()->with('error', 'La plantilla asociada a este formato prellenado no es válida o no está activa.');
         }
@@ -227,7 +227,6 @@ class DocumentGenerationController extends Controller
         // --- FIN DE LA PREPARACIÓN ---
 
         try {
-            $instrumentoTagId = $request->input('instrumento_tag_id');
             $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable', $instrumentoTagId, $unidadId, $prefilledData->id); // Pass unidadId to generateDocument
             return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $prefilledData->name]);
         } catch (Exception $e) {
@@ -244,7 +243,7 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
-            'unidad_id' => ['nullable', 'exists:unidades,id'],
+            'unidad_id' => ['required', 'exists:unidades,id'],
         ]);
         $template = Template::findOrFail($request->template_id); // Encuentra la plantilla por ID
         $unidadId = $request->input('unidad_id');
@@ -253,7 +252,7 @@ class DocumentGenerationController extends Controller
         $prefilledDataId = null;
 
         $dataForFilling = [];
-
+        
         try {
             // Llama a la función helper de generación, sin datos específicos para prellenar
             $docLink = $this->generateDocument($template, [], 'public_editable', $instrumentoTagId, $unidadId); // Pass unidadId to generateDocument
@@ -303,7 +302,7 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
-            'unidad_id' => ['nullable', 'exists:unidades,id'], // <-- AÑADE VALIDACIÓN
+            'unidad_id' => ['required', 'exists:unidades,id'], // <-- AÑADE VALIDACIÓN
             'instrumento_tag_id' => ['nullable', 'exists:tags,id'], // <-- AÑADE VALIDACIÓN
             // ... (otras validaciones de campos personalizados) ...
         ]);

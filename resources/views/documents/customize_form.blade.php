@@ -24,18 +24,6 @@
 
             <hr>
 
-            <div class="mb-3">
-                <label for="unidad_id_blank" class="form-label">Unidad:</label>
-                <select class="form-select @error('unidad_id') is-invalid @enderror" id="unidad_id_blank" name="unidad_id" required>
-                    <option value="">Selecciona una Unidad</option>
-                    @foreach($unidades as $unidad)
-                        <option value="{{ $unidad->id }}" {{ old('unidad_id') == $unidad->id ? 'selected' : '' }}>{{ $unidad->unidad }}</option>
-                    @endforeach
-                </select>
-                @error('unidad_id')
-                <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-            </div>
 
             <div class="alert alert-warning mt-4 text-center" role="alert">
                 ¡Atención! Al hacer clic en "Generar Documento", se creará una copia del documento en Google Drive.
@@ -45,6 +33,20 @@
             {{-- Botón para Generar Documento (Dispara la acción POST) --}}
             <form action="{{ route('documents.generate.blank') }}" method="POST" class="text-center">
                 @csrf
+                
+                <div class="mb-3">
+                    <label for="unidad_id_blank" class="form-label">Unidad:</label>
+                    <select class="form-select @error('unidad_id') is-invalid @enderror" id="unidad_id_blank" name="unidad_id" required>
+                        <option value="">Selecciona una Unidad</option>
+                        @foreach($unidades as $unidad)
+                            <option value="{{ $unidad->id }}" {{ old('unidad_id') == $unidad->id ? 'selected' : '' }}>{{ $unidad->unidad }}</option>
+                        @endforeach
+                    </select>
+                    @error('unidad_id')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+                
                 <input type="hidden" name="template_id" value="{{ $template->id }}">
                 <button type="submit" class="btn btn-success btn-lg mt-3">Generar Documento Ahora</button>
             </form>
