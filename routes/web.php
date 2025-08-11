@@ -20,9 +20,23 @@ use App\Http\Controllers\ApiLookupController;
 use App\Http\Controllers\UserPrefilledDataController;
 use App\Http\Controllers\Admin\GeneratedDocumentController as AdminGeneratedDocumentController; // Alias para evitar conflicto
 use App\Http\Controllers\UserGeneratedDocumentController;
+use App\Http\Controllers\EquipoPatronController;
+
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    // ... tus otras rutas de admin (users, templates, prefilled-data, diagrams) ...
+
+    // Rutas para la gestión de Equipos Patrones
+    // Esto generará rutas con nombres como 'admin.equipos-patrones.index', 'admin.equipos-patrones.create', etc.
+    Route::resource('equipos-patrones', EquipoPatronController::class)->names('admin.equipos-patrones');
+
+    // Rutas adicionales para soft delete (restore, force-delete)
+    Route::post('equipos-patrones/{id}/restore', [EquipoPatronController::class, 'restore'])->name('admin.equipos-patrones.restore');
+    Route::delete('equipos-patrones/{id}/force-delete', [EquipoPatronController::class, 'forceDelete'])->name('admin.equipos-patrones.force_delete');
+});
+
 // Rutas de Usuarios (accesibles por todos los autenticados)
 Route::middleware(['auth'])->group(function () {
-
+    
     Route::get('/prefilled-data', [UserPrefilledDataController::class, 'index'])->name('prefilled-data.index');
     // Rutas para los documentos generados por el usuario
     Route::get('/my-documents', [UserGeneratedDocumentController::class, 'index'])->name('user.generated-documents.index');

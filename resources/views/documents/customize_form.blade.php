@@ -47,6 +47,20 @@
                     @enderror
                 </div>
                 
+                {{-- Selector de Equipo Patrón --}}
+                <div class="mb-3">
+                    <label for="equipo_patron_id_preview" class="form-label">Equipo Patrón:</label>
+                    <select class="form-select @error('equipo_patron_id') is-invalid @enderror" id="equipo_patron_id_preview" name="equipo_patron_id">
+                        <option value="">Selecciona un Equipo Patrón (Opcional)</option>
+                        @foreach($equiposPatrones as $equipo)
+                            <option value="{{ $equipo->id }}" {{ old('equipo_patron_id') == $equipo->id ? 'selected' : '' }}>
+                                {{ $equipo->identificador }} ({{ $equipo->marca ?? 'N/A' }} {{ $equipo->modelo ?? 'N/A' }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('equipo_patron_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+
                 <input type="hidden" name="template_id" value="{{ $template->id }}">
                 <button type="submit" class="btn btn-success btn-lg mt-3">Generar Documento Ahora</button>
             </form>

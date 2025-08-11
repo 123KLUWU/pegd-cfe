@@ -13,6 +13,7 @@ use Barryvdh\DomPDF\Facade\Pdf; // ¡Importa la fachada de DomPDF!
 use Illuminate\Support\Str;
 use App\Models\Tag;
 use App\Models\Unidad;
+use App\Models\EquipoPatron;
 
 class UserPrefilledDataController extends Controller
 {
@@ -135,7 +136,7 @@ class UserPrefilledDataController extends Controller
 
         $unidades = Unidad::all(); // Cargar todos los instrumentos para el selector
         $instrumentos = Tag::all(); // Cargar todos los instrumentos para el selector
-
-        return view('prefilled_data.generate_confirmation', compact('prefilledData', 'instrumentos', 'unidades'));
+        $equiposPatrones = EquipoPatron::all();
+        return view('prefilled_data.generate_confirmation', compact('prefilledData', 'instrumentos', 'unidades', 'equiposPatrones'));
     }
 }

@@ -19,6 +19,7 @@ class GeneratedDocument extends Model
         'instrumento_tag_id',
         'unidad_id',
         'prefilled_data_id',
+        'equipo_patron_id',
         'title',
         'type',
         'visibility_status',
@@ -60,6 +61,11 @@ class GeneratedDocument extends Model
     public function prefilledData()
     {
         return $this->belongsTo(TemplatePrefilledData::class, 'prefilled_data_id'); // <-- NUEVA RELACIÓN
+    }
+    
+    public function equipoPatron()
+    {
+        return $this->belongsTo(EquipoPatron::class);
     }
     
     // Configuración para spatie/laravel-activitylog
