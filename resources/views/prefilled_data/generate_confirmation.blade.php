@@ -32,20 +32,6 @@
                 <pre class="bg-light p-3 rounded small" style="max-height: 200px; overflow-y: auto;">{{ json_encode($prefilledData->data_json, JSON_PRETTY_PRINT) }}</pre>
             </div>
              --}}
-             
-            {{-- Selector de Unidad --}}
-            <div class="mb-3">
-                <label for="unidad_id" class="form-label">Unidad (Obligatorio):</label>
-                <select class="form-select @error('unidad_id') is-invalid @enderror" id="unidad_id" name="unidad_id" required>
-                    <option value="">Seleccione una Unidad</option>
-                    @foreach($unidades as $unidad)
-                        <option value="{{ $unidad->id }}" {{ old('unidad_id', $prefilledData->unidad_id ?? '') == $unidad->id ? 'selected' : '' }}>
-                             {{ $unidad->unidad }}
-                        </option>
-                    @endforeach
-                </select>
-                @error('unidad_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
-            </div>
 
             <div class="alert alert-warning mt-4 text-center" role="alert">
                 ¡Atención! Al hacer clic en "Generar Documento", se creará una copia del documento en Google Drive.
@@ -55,8 +41,38 @@
             {{-- Botón para Generar Documento (Dispara la acción POST) --}}
             <form action="{{ route('documents.generate.predefined') }}" method="POST" class="text-center">
                 @csrf
+                             
+                {{-- Selector de Unidad --}}
+                <div class="mb-3">
+                    <label for="unidad_id" class="form-label">Unidad (Obligatorio):</label>
+                    <select class="form-select @error('unidad_id') is-invalid @enderror" id="unidad_id" name="unidad_id" required>
+                        <option value="">Seleccione una Unidad</option>
+                        @foreach($unidades as $unidad)
+                            <option value="{{ $unidad->id }}" {{ old('unidad_id', $prefilledData->unidad_id ?? '') == $unidad->id ? 'selected' : '' }}>
+                                {{ $unidad->unidad }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('unidad_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+
+                {{-- Selector de Equipo Patrón --}}
+                <div class="mb-3">
+                    <label for="equipo_patron_id" class="form-label">Equipo Patrón:</label>
+                    <select class="form-select @error('equipo_patron_id') is-invalid @enderror" id="equipo_patron_id" name="equipo_patron_id">
+                        <option value="">Selecciona un Equipo Patrón (Opcional)</option>
+                        @foreach($equiposPatrones as $equipo)
+                            <option value="{{ $equipo->id }}" {{ old('equipo_patron_id', $prefilledData->equipo_patron_id ?? '') == $equipo->id ? 'selected' : '' }}>
+                                {{ $equipo->identificador }} ({{ $equipo->marca ?? 'N/A' }} {{ $equipo->modelo ?? 'N/A' }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('equipo_patron_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+
                 <input type="hidden" name="prefilled_data_id" value="{{ $prefilledData->id }}">
-                <input type="hidden" name="unidad_id" id="unidad_id_hidden" value="{{ old('unidad_id', $prefilledData->unidad_id ?? '') }}">
+
+                {{-- <input type="hidden" name="unidad_id" id="unidad_id_hidden" value="{{ old('unidad_id', $prefilledData->unidad_id ?? '') }}"> --}}
                 
                 <button type="submit" class="btn btn-success btn-lg mt-3">Generar Documento Ahora</button>
             </form>
@@ -65,21 +81,3 @@
     </div>
 </div>
 @endsection
-
-@push('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const unidadSelect = document.getElementById('unidad_id');
-    const unidadHiddenInput = document.getElementById('unidad_id_hidden');
-
-    // Sincronizar el selector visible con el input oculto del formulario POST
-    if (unidadSelect && unidadHiddenInput) {
-        unidadSelect.addEventListener('change', function() {
-            unidadHiddenInput.value = this.value;
-        });
-        // Asegurarse de que el valor inicial esté sincronizado
-        unidadHiddenInput.value = unidadSelect.value;
-    }
-});
-</script>
-@endpush

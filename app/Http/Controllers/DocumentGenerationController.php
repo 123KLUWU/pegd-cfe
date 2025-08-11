@@ -19,6 +19,7 @@ use Barryvdh\DomPDF\Facade\Pdf; // ¡Importa la fachada de DomPDF!
 use Illuminate\Support\Str;
 use App\Models\Tag;
 use App\Models\Unidad;
+use App\Models\EquipoPatron;
 // Importaciones de Google Docs
 use Google\Service\Docs\BatchUpdateDocumentRequest;
 use Google\Service\Docs\Request as GoogleDocsRequest;
@@ -45,7 +46,7 @@ class DocumentGenerationController extends Controller
      * @return string La URL del documento generado.
      * @throws Exception Si ocurre un error durante la generación.
      */
-    protected function generateDocument(Template $template, array $dataForFilling, string $visibilityStatus = 'public_editable', ?int $instrumentoTagId = null, ?int $unidadId = null, ?int $prefilledDataId = null): string
+    protected function generateDocument(Template $template, array $dataForFilling, string $visibilityStatus = 'public_editable', ?int $instrumentoTagId = null, ?int $unidadId = null, ?int $prefilledDataId = null, ?int $equipoPatronId = null): string
     {
         try {
             $docsService = $this->googleService->getDocsService();
@@ -113,6 +114,7 @@ class DocumentGenerationController extends Controller
                 'instrumento_tag_id' => $instrumentoTagId,
                 'unidad_id' => $unidadId,
                 'prefilled_data_id' => $prefilledDataId,
+                'equipo_patron_id' => $equipoPatronId,
                 'title' => $newDocTitle,
                 'type' => $template->type,
                 'visibility_status' => $visibilityStatus,
@@ -171,22 +173,56 @@ class DocumentGenerationController extends Controller
         }
     }
 
+    /**
+     * Helper para verificar la vigencia de un Equipo Patrón.
+     * @param int $equipoPatronId
+     * @return bool
+     * @throws \Exception Si el equipo no está vigente.
+     */
+    protected function checkEquipoPatronVigencia(int $equipoPatronId): bool
+    {
+        $equipoPatron = EquipoPatron::find($equipoPatronId);
 
+        if (!$equipoPatron) {
+            throw new \Exception('El Equipo Patrón seleccionado no existe.');
+        }
+
+        // Si el estado es 'NO CUMPLE', bloquea la generación
+        if ($equipoPatron->estado === 'NO CUMPLE') {
+            throw new \Exception('El Equipo Patrón "' . $equipoPatron->identificador . '" no está vigente. No se puede generar el documento.');
+        }
+        
+        // Si es 'CUMPLE' o 'CUMPLE PARCIALMENTE', permite la generación
+        return true;
+    }
+    
     // --- Métodos de Generación para el Menú ---
     public function generatePredefined(Request $request)
     {
         $request->validate([
             'prefilled_data_id' => ['required', 'exists:template_prefilled_data,id'],
-            'unidad_id' => ['nullable', 'exists:unidades,id'], // Added validation for unidad_id
+            'unidad_id' => ['required', 'exists:unidades,id'], // Added validation for unidad_id
+            'equipo_patron_id' => ['nullable', 'exists:equipos_patrones,id'], 
         ]);
 
         $prefilledData = TemplatePrefilledData::findOrFail($request->prefilled_data_id);
         $template = $prefilledData->template; // Obtiene la plantilla asociada al formato prellenado
         $unidadId = $request->input('unidad_id'); // Get unidad_id from request
+        $instrumentoTagId = $prefilledData->tag_id;
+        $equipoPatronId = $request->input('equipo_patron_id');
 
         if (!$template || !$template->is_active || $template->trashed()) {
             return back()->with('error', 'La plantilla asociada a este formato prellenado no es válida o no está activa.');
         }
+        
+        if ($equipoPatronId) {
+            try {
+                $this->checkEquipoPatronVigencia($equipoPatronId);
+            } catch (\Exception $e) {
+                return back()->with('error', $e->getMessage());
+            }
+        }
+
 
         // --- PREPARACIÓN DE $dataForFilling ---
         $dataForFilling = [];
@@ -227,8 +263,7 @@ class DocumentGenerationController extends Controller
         // --- FIN DE LA PREPARACIÓN ---
 
         try {
-            $instrumentoTagId = $request->input('instrumento_tag_id');
-            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable', $instrumentoTagId, $unidadId, $prefilledData->id); // Pass unidadId to generateDocument
+            $docLink = $this->generateDocument($template, $dataForFilling, 'public_editable', $instrumentoTagId, $unidadId, $prefilledData->id, $equipoPatronId); // Pass unidadId to generateDocument
             return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $prefilledData->name]);
         } catch (Exception $e) {
             return back()->with('error', 'Hubo un error al generar el documento. ' . $e->getMessage());
@@ -245,18 +280,20 @@ class DocumentGenerationController extends Controller
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
             'unidad_id' => ['nullable', 'exists:unidades,id'],
+            'equipo_patron_id' => ['nullable', 'exists:equipos_patrones,id'], 
         ]);
+
         $template = Template::findOrFail($request->template_id); // Encuentra la plantilla por ID
         $unidadId = $request->input('unidad_id');
-
+        $equipoPatronId = $request->input('equipo_patron_id');
         $instrumentoTagId = null;
         $prefilledDataId = null;
 
         $dataForFilling = [];
-
+        
         try {
             // Llama a la función helper de generación, sin datos específicos para prellenar
-            $docLink = $this->generateDocument($template, [], 'public_editable', $instrumentoTagId, $unidadId); // Pass unidadId to generateDocument
+            $docLink = $this->generateDocument($template, [], 'public_editable', $instrumentoTagId, $unidadId, $prefilledDataId, $equipoPatronId); // Pass unidadId to generateDocument
             return redirect()->route('documents.generated.success')->with(['docLink' => $docLink, 'docTitle' => $template->name]);
         } catch (Exception $e) {
             return back()->with('error', $e->getMessage());
@@ -291,7 +328,8 @@ class DocumentGenerationController extends Controller
     {
         $instrumentos = Tag::all();
         $unidades = Unidad::all(); // <-- Obtener todas las unidades
-        return view('documents.customize_form', compact('template', 'instrumentos', 'unidades'));
+        $equiposPatrones = EquipoPatron::all();
+        return view('documents.customize_form', compact('template', 'instrumentos', 'unidades', 'equiposPatrones'));
     }
 
     /**
@@ -303,7 +341,7 @@ class DocumentGenerationController extends Controller
     {
         $request->validate([
             'template_id' => ['required', 'exists:templates,id'],
-            'unidad_id' => ['nullable', 'exists:unidades,id'], // <-- AÑADE VALIDACIÓN
+            'unidad_id' => ['required', 'exists:unidades,id'], // <-- AÑADE VALIDACIÓN
             'instrumento_tag_id' => ['nullable', 'exists:tags,id'], // <-- AÑADE VALIDACIÓN
             // ... (otras validaciones de campos personalizados) ...
         ]);

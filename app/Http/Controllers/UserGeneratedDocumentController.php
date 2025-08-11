@@ -10,7 +10,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\Activitylog\Models\Activity;
-use SimpleSoftwareIO\QrCode\Facades\QrCode; 
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Models\Tag;
+use App\Models\Unidad; 
+
 class UserGeneratedDocumentController extends Controller
 {
     protected $googleService;
@@ -157,6 +160,94 @@ class UserGeneratedDocumentController extends Controller
         });
 
         return redirect()->route('user.generated-documents.index')->with('success', 'Documento restaurado exitosamente.');
+    }
+
+     /**
+     * Muestra los documentos generados por el usuario, agrupados por Unidad e Instrumento.
+     * @param Request $request
+     * @return \Illuminate\View\View
+     */
+    public function indexByUnitAndInstrument(Request $request)
+    {
+        $documents = GeneratedDocument::query() // REMOVIDO: ->where('user_id', Auth::id())
+        ->whereNull('deleted_at') // Solo documentos no soft-deleted
+        ->with(['unidad', 'instrumento', 'template']) // Cargar relaciones
+        ->orderBy('generated_at', 'desc')
+        ->get(); // Obtener todos los documentos para agrupar en memoria
+
+        // 2. Obtener miniaturas para cada documento
+        foreach ($documents as $document) {
+            $document->thumbnail_link = $this->getDocumentThumbnailLink($document);
+        }
+
+        $groupedDocuments = $documents->groupBy('unidad.unidad')->map(function ($documentsByUnit) {
+            return $documentsByUnit->groupBy('instrumento.tag');
+        });
+
+        $availableUnidades = Unidad::whereHas('generatedDocuments', function($q) {
+            $q->whereNull('deleted_at'); // Solo unidades con documentos no soft-deleted
+        })->orderBy('unidad')->get();
+
+        $availableInstrumentos = Tag::whereHas('generatedDocuments', function($q) {
+            $q->whereNull('deleted_at'); // Solo instrumentos con documentos no soft-deleted
+        })->orderBy('tag')->get();
+
+        return view('user_documents.index_by_unit_instrument', compact('groupedDocuments', 'availableUnidades', 'availableInstrumentos'));
+    }
+    
+     /**
+     * Nivel 1: Muestra un listado de todas las unidades con documentos generados.
+     * @return \Illuminate\View\View
+     */
+    public function indexByUnit()
+    {
+        // Obtener todas las unidades que tienen al menos un documento generado por cualquier usuario
+        $unidades = Unidad::whereHas('generatedDocuments', function ($query) {
+            $query->whereNull('deleted_at'); // Solo unidades con documentos activos
+        })->withCount(['generatedDocuments' => function ($query) {
+            $query->whereNull('deleted_at'); // Contar solo documentos activos
+        }])->get();
+
+        return view('user_documents.unit_list', compact('unidades'));
+    }
+
+    /**
+     * Nivel 2: Muestra los instrumentos con documentos generados para una unidad específica.
+     * @param Unidad $unidad
+     * @return \Illuminate\View\View
+     */
+    public function showInstrumentsByUnit(Unidad $unidad)
+    {
+        // Obtener todos los instrumentos que tienen documentos generados en esta unidad
+        $instrumentos = Tag::whereHas('generatedDocuments', function ($query) use ($unidad) {
+            $query->where('unidad_id', $unidad->id)->whereNull('deleted_at');
+        })->withCount(['generatedDocuments' => function ($query) use ($unidad) {
+            $query->where('unidad_id', $unidad->id)->whereNull('deleted_at');
+        }])->get();
+
+        return view('user_documents.instrument_list', compact('unidad', 'instrumentos'));
+    }
+
+    /**
+     * Nivel 3: Muestra los documentos para una unidad e instrumento específicos.
+     * @param Unidad $unidad
+     * @param Tag $instrumento
+     * @return \Illuminate\View\View
+     */
+    public function showDocumentsByUnitAndInstrument(Unidad $unidad, Tag $instrumento)
+    {
+        $documents = GeneratedDocument::where('unidad_id', $unidad->id)
+            ->where('instrumento_tag_id', $instrumento->id)
+            ->whereNull('deleted_at')
+            ->with(['template', 'user'])
+            ->orderBy('generated_at', 'desc')
+            ->get();
+
+        foreach ($documents as $document) {
+            $document->thumbnail_link = $this->getDocumentThumbnailLink($document);
+        }
+
+        return view('user_documents.document_list', compact('unidad', 'instrumento', 'documents'));
     }
 
     /**
