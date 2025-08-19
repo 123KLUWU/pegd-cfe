@@ -30,7 +30,7 @@ https://es.stackoverflow.com/questions/309482/integraci%c3%b3n-laravel-dompdf-y-
         <p class="url-text">{{ $qrContentUrl }}</p>
 
         <div class="footer">
-            <p>Generado por PEGD-CFE el {{ now()->format('d/m/Y H:i') }}</p>
+            <p>Generado el {{ now()->format('d/m/Y H:i') }}</p>
         </div>
     </div>
 </body>

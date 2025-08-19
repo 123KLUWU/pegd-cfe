@@ -31,7 +31,7 @@
                     <option value="">Todas las Plantillas</option>
                     @foreach ($available_templates as $template)
                         <option value="{{ $template->id }}" {{ $selected_template_id == $template->id ? 'selected' : '' }}>
-                            {{ $template->name }} ({{ ucfirst($template->type) }})
+                            {{ $template->name }}
                         </option>
                     @endforeach
                 </select>
