@@ -63,7 +63,7 @@
                         <option value="">Selecciona un Equipo Patrón (Opcional)</option>
                         @foreach($equiposPatrones as $equipo)
                             <option value="{{ $equipo->id }}" {{ old('equipo_patron_id', $prefilledData->equipo_patron_id ?? '') == $equipo->id ? 'selected' : '' }}>
-                                {{ $equipo->identificador }} ({{ $equipo->marca ?? 'N/A' }} {{ $equipo->modelo ?? 'N/A' }})
+                                {{ $equipo->identificador }} ({{ $equipo->marca ?? 'N/A' }} {{ $equipo->modelo ?? 'N/A' }}) estado: {{ $equipo->estado }}
                             </option>
                         @endforeach
                     </select>

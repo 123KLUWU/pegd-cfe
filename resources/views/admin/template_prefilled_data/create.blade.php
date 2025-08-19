@@ -66,13 +66,14 @@
     <button type="button" class="btn btn-sm btn-outline-primary mt-2" id="add-key-value-row">Añadir Par Clave-Valor</button>
 </div>
 
-
+        {{-- 
         <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="is_default_option" name="is_default_option" {{ old('is_default_option', isset($prefilledData) && $prefilledData->is_default_option ? 'checked' : '') }}>
             <label class="form-check-label" for="is_default_option">
                 Marcar como opción predeterminada para esta plantilla
             </label>
         </div>
+         --}}
 
         <button type="submit" class="btn btn-primary">Guardar Formato Predeterminado</button>
         <a href="{{ route('admin.templates.edit', $template->id) }}" class="btn btn-secondary">Cancelar</a>

@@ -82,7 +82,7 @@ class TemplatePrefilledDataController extends Controller
         // Accede a $prefilledData->data_json para mostrarlo en el formulario de edición
         $instrumentos = Tag::all(); // Pasar instrumentos (Tags) a la vista
 
-        return view('admin.template_prefilled_data.edit', compact('prefilledData', 'templates', 'instrumentos'));
+        return view('admin.template_prefilled_data.edit', compact('prefilledData', 'instrumentos'));
     }
     public function store(Request $request)
     {

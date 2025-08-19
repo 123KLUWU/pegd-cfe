@@ -33,6 +33,7 @@
                     <option value="spreadsheets" {{ $selected_type == 'spreadsheets' ? 'selected' : '' }}>Google Sheets</option>
                 </select>
             </div>
+            {{-- 
             <div class="col-md-3">
                 <label for="visibility" class="form-label">Filtrar por Visibilidad:</label>
                 <select class="form-select" id="visibility" name="visibility">
@@ -42,6 +43,7 @@
                     <option value="private_restricted" {{ $selected_visibility == 'private_restricted' ? 'selected' : '' }}>Privado</option>
                 </select>
             </div>
+             --}}
             <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">Filtrar</button>
             </div>
@@ -56,6 +58,7 @@
                         <h5 class="card-title">{{ $document->title }}</h5>
                         <p class="card-text"><small class="text-muted">Plantilla: {{ $document->template->name ?? 'N/A' }}</small></p>
                         <p class="card-text"><small class="text-muted">Generado el: {{ $document->generated_at->format('d/m/Y H:i') }}</small></p>
+                        {{--
                         <p class="card-text">
                             <span class="badge bg-{{
                                 $document->visibility_status == 'public_editable' ? 'success' : (
@@ -64,6 +67,7 @@
                                 {{ ucfirst(str_replace('_', ' ', $document->visibility_status)) }}
                             </span>
                         </p>
+                        --}}
 
                         {{-- Miniatura del Documento --}}
                         <div class="document-thumbnail-container text-center my-3" style="width: 100%; height: 120px; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; border-radius: .25rem;">
@@ -91,8 +95,11 @@
                                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton_{{ $document->id }}">
                                     {{-- Opción: Ver Detalles (nuestra vista show) --}}
                                     <li><a class="dropdown-item" href="{{ route('user.generated-documents.show', $document->id) }}">Ver Detalles</a></li>
-                                    {{-- Opción: Ver Datos JSON (siempre útil para depuración/referencia) --}}
+                                    
+                                    {{-- Opción: Ver Datos JSON (siempre útil para depuración/referencia)
                                     <li><button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#dataJsonModal" data-json="{{ json_encode($document->data_values_json, JSON_PRETTY_PRINT) }}" data-title="{{ $document->title }}">Ver Datos JSON</button></li>
+                                     --}}
+
                                     {{-- Opción: Eliminar (Soft Delete) --}}
                                     @if (!$document->trashed())
                                         <li>
