@@ -3,7 +3,7 @@
 
 @section('content')
 <div class="container">
-    <h1>Crear Formato Predeterminado para {{ $prefilledData->name }}</h1>
+    <h1>Editar Formato Predeterminado {{ $prefilledData->name }}</h1>
 
     <form method="POST" action="{{ route('admin.templates.prefilled-data.update', $prefilledData->id) }}">
         @csrf
@@ -42,8 +42,8 @@
                 </div>
             </div> --}}
         </div>
-        {{-- <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="add-dynamic-field">Añadir Campo</button> --}}
-
+        {{-- 
+        <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="add-dynamic-field">Añadir Campo</button>
 
         <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="is_default_option" name="is_default_option" {{ old('is_default_option', isset($prefilledData) && $prefilledData->is_default_option ? 'checked' : '') }}>
@@ -51,6 +51,7 @@
                 Marcar como opción predeterminada para esta plantilla
             </label>
         </div>
+        --}}
 
         <button type="submit" class="btn btn-primary">Guardar Formato Predeterminado</button>
         <a href="{{ route('admin.templates.edit', $prefilledData->id) }}" class="btn btn-secondary">Cancelar</a>

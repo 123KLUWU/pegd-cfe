@@ -33,6 +33,7 @@
                     <option value="sheets" {{ $selected_type == 'sheets' ? 'selected' : '' }}>Google Sheets</option>
                 </select>
             </div>
+            {{-- 
             <div class="col-md-2">
                 <label for="visibility" class="form-label">Visibilidad:</label>
                 <select class="form-select" id="visibility" name="visibility">
@@ -42,6 +43,7 @@
                     <option value="private_restricted" {{ $selected_visibility == 'private_restricted' ? 'selected' : '' }}>Privado</option>
                 </select>
             </div>
+             --}}
             <div class="col-md-2">
                 <label for="status" class="form-label">Estado DB:</label>
                 <select class="form-select" id="status" name="status">
@@ -65,7 +67,9 @@
                 <th>Generado Por</th>
                 <th>Plantilla</th>
                 <th>Tipo</th>
+                {{-- 
                 <th>Visibilidad</th>
+                 --}}
                 <th>Fecha Generación</th>
                 <th>Estado DB</th>
                 <th>Acciones</th>
@@ -86,6 +90,7 @@
                     <td>{{ $document->user->name ?? 'N/A' }}</td>
                     <td>{{ $document->template->name ?? 'N/A' }}</td>
                     <td>{{ ucfirst($document->type) }}</td>
+                    {{-- 
                     <td>
                         <span class="badge bg-{{
                             $document->visibility_status == 'public_editable' ? 'success' : (
@@ -94,6 +99,7 @@
                             {{ ucfirst(str_replace('_', ' ', $document->visibility_status)) }}
                         </span>
                     </td>
+                     --}}
                     <td>{{ $document->generated_at->format('d/m/Y H:i') }}</td>
                     <td>
                         @if ($document->trashed())
@@ -109,7 +115,7 @@
                         {{-- Botón "Ver Detalles" (nuestra vista show) --}}
                         <a href="{{ route('generated-documents.show', $document->id) }}" class="btn btn-sm btn-outline-info">Detalles</a>
 
-                        {{-- Selector de Visibilidad (en línea) --}}
+                        {{-- Selector de Visibilidad (en línea)
                         <form action="{{ route('admin.generated-documents.change_visibility', $document->id) }}" method="POST" class="d-inline ms-1">
                             @csrf
                             <select name="visibility_status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
@@ -118,6 +124,7 @@
                                 <option value="private_restricted" {{ $document->visibility_status == 'private_restricted' ? 'selected' : '' }}>Privado</option>
                             </select>
                         </form>
+                         --}}
 
                         @if (!$document->trashed())
                             <form action="{{ route('generated-documents.destroy', $document->id) }}" method="POST" class="d-inline">
