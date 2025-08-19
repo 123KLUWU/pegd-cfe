@@ -10,9 +10,11 @@
     <h1>Generar Documento: {{ $template->name }}</h1>
     <p class="lead">{{ $template->description ?? 'Esta plantilla sirve para la generación de documentos.' }}</p>
 
+    {{-- 
     <div class="alert alert-info" role="alert">
         <strong>Nota:</strong> Los documentos generados serán públicos y editables por cualquier persona con el enlace durante 3 horas, después se harán privados.
     </div>
+     --}}
 
     @if (session('error'))
         <div class="alert alert-danger mt-3" role="alert">

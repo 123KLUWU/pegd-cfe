@@ -117,7 +117,7 @@ class UserPrefilledDataController extends Controller
             'qrCodeSvg' => $qrSvg,
             'qrContentUrl' => $qrContentUrl,
         ];
-        $pdf = Pdf::loadView('diagrams.qr_pdf_template', $data);
+        $pdf = Pdf::loadView('qr.document_qr', $data);
         return $pdf->stream('qr_diagrama_' . Str::slug($TemplatePrefilledData->name) . '.pdf');
     }
 
