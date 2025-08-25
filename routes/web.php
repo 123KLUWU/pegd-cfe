@@ -21,17 +21,15 @@ use App\Http\Controllers\UserPrefilledDataController;
 use App\Http\Controllers\Admin\GeneratedDocumentController as AdminGeneratedDocumentController; // Alias para evitar conflicto
 use App\Http\Controllers\UserGeneratedDocumentController;
 use App\Http\Controllers\EquipoPatronController;
+use App\Http\Controllers\Admin\EquipoPatronController as AdminEquipoPatronController;
 
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
-    // ... tus otras rutas de admin (users, templates, prefilled-data, diagrams) ...
 
-    // Rutas para la gestión de Equipos Patrones
-    // Esto generará rutas con nombres como 'admin.equipos-patrones.index', 'admin.equipos-patrones.create', etc.
-    Route::resource('equipos-patrones', EquipoPatronController::class)->names('admin.equipos-patrones');
-
-    // Rutas adicionales para soft delete (restore, force-delete)
-    Route::post('equipos-patrones/{id}/restore', [EquipoPatronController::class, 'restore'])->name('admin.equipos-patrones.restore');
-    Route::delete('equipos-patrones/{id}/force-delete', [EquipoPatronController::class, 'forceDelete'])->name('admin.equipos-patrones.force_delete');
+    Route::resource('equipos-patrones', AdminEquipoPatronController::class)->names('admin.equipos-patrones')->parameters(['equipos-patrones' => 'equipo_patron']);
+    
+    Route::post('equipos-patrones/{id}/restore', [AdminEquipoPatronController::class, 'restore'])->name('admin.equipos-patrones.restore');
+    
+    Route::delete('equipos-patrones/{id}/force-delete', [AdminEquipoPatronController::class, 'forceDelete'])->name('admin.equipos-patrones.force_delete');
 });
 
 // Rutas de Usuarios (accesibles por todos los autenticados)

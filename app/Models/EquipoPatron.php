@@ -45,6 +45,7 @@ class EquipoPatron extends Model
         'ultima_calibracion' => 'date',
         'proxima_calibracion' => 'date',
         'vigente' => 'boolean',
+        'estado' => 'string',
         'deleted_at' => 'datetime',
     ];
 
