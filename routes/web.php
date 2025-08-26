@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use App\Services\GoogleAuthService;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\HomeController;
 use App\Services\GoogleDriveService;
@@ -21,17 +23,64 @@ use App\Http\Controllers\UserPrefilledDataController;
 use App\Http\Controllers\Admin\GeneratedDocumentController as AdminGeneratedDocumentController; // Alias para evitar conflicto
 use App\Http\Controllers\UserGeneratedDocumentController;
 use App\Http\Controllers\EquipoPatronController;
+use App\Http\Controllers\Admin\EquipoPatronController as AdminEquipoPatronController;
+//use App\Http\Controllers\MailDocController;
+use App\Models\GeneratedDocument;
+//use App\Mail\DocAdjuntoMail;
+use App\Services\DriveExporter;
+//use Illuminate\Support\Facades\Mail;
 
+/*
+Route::get('/test-send/{id}', function ($id, DriveExporter $exporter) {
+    $document = GeneratedDocument::findOrFail($id);
+
+    [$tmpPath, $filename] = $exporter->downloadWithNativeFormat($document->google_drive_id);
+
+    Mail::to('carlos.pous@hotmail.com')->send(new DocAdjuntoMail(
+        asunto:        'Prueba envío adjunto',
+        mensajePlano:  'Hola, este es un correo de prueba con el archivo.',
+        rutaAdjunto:   $tmpPath,
+        nombreAdjunto: $filename
+    ));
+
+    @unlink($tmpPath);
+
+    return "Correo enviado con adjunto $filename";
+});
+
+Route::get('/mail/test', function () {
+    \Illuminate\Support\Facades\Mail::raw('Prueba desde Laravel con Gmail', function ($m) {
+        $m->to('rrrchavarria@gmail.com')->subject('SMTP OK');
+    });
+    return 'Correo enviado (revisa tu inbox/spam)';
+});
+
+Route::get('/emails/send-doc/{document}', [MailDocController::class, 'form'])
+     ->name('emails.form');
+
+// Enviar el correo (adjunto exportado/descargado de Drive)
+Route::post('/emails/send-doc/{document}', [MailDocController::class, 'send'])
+     ->name('emails.send');
+
+Route::get('/mail/smoke', function () {
+    \Illuminate\Support\Facades\Mail::raw(
+        "Hola, prueba rápida desde Workspace SMTP.",
+        function ($m) {
+            $m->to('tu-correo-de-prueba@tudominio.com')
+              ->subject('Smoke Test Workspace SMTP');
+        }
+    );
+
+    return 'OK enviado';
+});
+*/
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
-    // ... tus otras rutas de admin (users, templates, prefilled-data, diagrams) ...
 
-    // Rutas para la gestión de Equipos Patrones
-    // Esto generará rutas con nombres como 'admin.equipos-patrones.index', 'admin.equipos-patrones.create', etc.
-    Route::resource('equipos-patrones', EquipoPatronController::class)->names('admin.equipos-patrones');
-
-    // Rutas adicionales para soft delete (restore, force-delete)
-    Route::post('equipos-patrones/{id}/restore', [EquipoPatronController::class, 'restore'])->name('admin.equipos-patrones.restore');
-    Route::delete('equipos-patrones/{id}/force-delete', [EquipoPatronController::class, 'forceDelete'])->name('admin.equipos-patrones.force_delete');
+    Route::resource('equipos-patrones', AdminEquipoPatronController::class)->names('admin.equipos-patrones')->parameters(['equipos-patrones' => 'equipo_patron']);
+    
+    Route::post('equipos-patrones/{id}/restore', [AdminEquipoPatronController::class, 'restore'])->name('admin.equipos-patrones.restore');
+    
+    Route::delete('equipos-patrones/{id}/force-delete', [AdminEquipoPatronController::class, 'forceDelete'])->name('admin.equipos-patrones.force_delete');
 });
 
 // Rutas de Usuarios (accesibles por todos los autenticados)
@@ -197,57 +246,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/documents/generated-success', [DocumentGenerationController::class, 'showGeneratedSuccess'])->name('documents.generated.success');
 });
 
-/**
- * 
- * rutas para configuracion google cloud 
- * 
- */
-
-// Ruta para iniciar el proceso de autenticación de Google
-Route::get('/google/auth', function (GoogleDriveService $googleService) {
-    $client = $googleService->getClient();
-    $authUrl = $client->createAuthUrl();
-    return redirect()->to($authUrl);
+Route::get('/google/auth', function (GoogleAuthService $svc) {
+  return redirect()->away($svc->authUrl());
 })->name('google.auth');
 
-// Ruta de callback a la que Google redirigirá después de la autenticación
-Route::get('/google/callback', function (GoogleDriveService $googleService) {
-    $client = $googleService->getClient();
-
-    if (request()->has('code')) {
-        $authCode = request('code');
-        $accessToken = $client->fetchAccessTokenWithAuthCode($authCode);
-
-        // Guarda el refresh_token. ¡Este es el token que necesitas persistir!
-        $refreshToken = $accessToken['refresh_token'] ?? null;
-
-        if ($refreshToken) {
-            // Guarda el refresh token en el .env
-            $path = base_path('.env');
-            if (File::exists($path)) {
-                // Cuidado: Esta es una forma simple para desarrollo.
-                // En producción, usa un sistema más robusto (DB, Hashicorp Vault, etc.)
-                $envContent = File::get($path);
-                if (Str::contains($envContent, 'GOOGLE_REFRESH_TOKEN=')) {
-                    $envContent = preg_replace(
-                        '/^GOOGLE_REFRESH_TOKEN=.*$/m',
-                        'GOOGLE_REFRESH_TOKEN="' . $refreshToken . '"',
-                        $envContent
-                    );
-                } else {
-                    $envContent .= "\nGOOGLE_REFRESH_TOKEN=\"{$refreshToken}\"";
-                }
-                File::put($path, $envContent);
-            }
-
-            Log::info('Google Refresh Token obtenido y guardado.', ['refresh_token' => $refreshToken]);
-            return "Autenticación exitosa. Refresh Token guardado en tu .env. Ya puedes usar las APIs.";
-        } else {
-            Log::error('No se pudo obtener el refresh token.');
-            return "Error: No se pudo obtener el refresh token. Asegúrate de que el access type sea 'offline'.";
-        }
-    } else {
-        Log::error('No se recibió código de autorización de Google.', ['request' => request()->all()]);
-        return "Error: No se recibió código de autorización.";
-    }
+Route::get('/google/callback', function (Request $req, GoogleAuthService $svc) {
+  if (!$req->has('code')) return 'Error: falta code';
+  $svc->handleCallback($req->query('code'));
+  return 'Autenticación OK. Token guardado en BD.';
 })->name('google.callback');

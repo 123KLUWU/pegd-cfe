@@ -53,6 +53,12 @@ class DocumentGenerationController extends Controller
             $sheetsService = $this->googleService->getSheetsService();
             $driveService = $this->googleService->getDriveService();
 
+            if (!$docsService || !$sheetsService || !$driveService) {
+                // nada de redirigir: solo log y responde “silencioso” como tú decidas
+                \Log::warning('Google no disponible', ['error' => $this->googleService->lastError()]);
+                throw new \Exception('Servicio de Google no disponible en este momento.'); // o response()->json(..., 503)
+            }
+            
             $newDocTitle = $template->name . ' - ' . Auth::user()->rpe . ' - ' . now()->format('YmdHis');
 
             // 1. Copiar la plantilla

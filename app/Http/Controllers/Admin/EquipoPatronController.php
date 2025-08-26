@@ -1,26 +1,32 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
-use App\Models\EquipoPatron;
+use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Para el usuario autenticado
-use Spatie\Activitylog\Models\Activity; // Para el registro de actividad
+use App\Models\EquipoPatron;
+use Illuminate\Support\Facades\Auth;
+use Spatie\Activitylog\Models\Activity;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class EquipoPatronController extends Controller
 {
     /**
      * Constructor del controlador.
      * Protegerá las rutas para administradores o usuarios con permiso.
-     */
+    */
     public function __construct()
     {
         $this->middleware('auth');
+        // Asegúrate de que el rol 'admin' o el permiso 'manage equipos patrones' estén asignados
+        $this->middleware('role:admin');
     }
 
     /**
-     * Display a listing of the resource.
+     * Muestra un listado paginado de los equipos patrones.
+     * Incluye opciones de búsqueda y filtro por estado.
      */
     public function index(Request $request)
     {
@@ -38,9 +44,9 @@ class EquipoPatronController extends Controller
             });
         }
 
-        $filterVigente = $request->input('vigente');
-        if ($filterVigente !== null && ($filterVigente === '1' || $filterVigente === '0')) {
-            $query->where('vigente', (bool)$filterVigente);
+        $filterEstado = $request->input('estado');
+        if ($filterEstado && in_array($filterEstado, ['CUMPLE', 'NO CUMPLE', 'CUMPLE PARCIALMENTE'])) {
+            $query->where('estado', $filterEstado);
         }
 
         $filterStatus = $request->input('status'); // 'trashed', 'with_trashed'
@@ -48,29 +54,29 @@ class EquipoPatronController extends Controller
             if ($filterStatus === 'trashed') $query->onlyTrashed();
             elseif ($filterStatus === 'with_trashed') $query->withTrashed();
         } else {
-            $query->whereNull('deleted_at'); // Default: solo no eliminados
+            $query->whereNull('deleted_at'); // Por defecto, solo no soft-deleted
         }
 
         $equipos = $query->orderBy('identificador')->paginate(15);
 
-        return view('equipos_patrones.index', [
+        return view('admin.equipos_patrones.index', [
             'equipos' => $equipos,
             'search_query' => $search,
-            'selected_vigente' => $filterVigente,
+            'selected_estado' => $filterEstado,
             'selected_status' => $filterStatus,
         ]);
     }
 
     /**
-     * Show the form for creating a new resource.
+     * Muestra el formulario para crear un nuevo equipo patrón.
      */
     public function create()
     {
-        return view('equipos_patrones.create');
+        return view('admin.equipos_patrones.create');
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Almacena un nuevo equipo patrón en la base de datos.
      */
     public function store(Request $request)
     {
@@ -80,21 +86,31 @@ class EquipoPatronController extends Controller
             'marca' => ['nullable', 'string', 'max:255'],
             'modelo' => ['nullable', 'string', 'max:255'],
             'numero_serie' => ['nullable', 'string', 'max:255', 'unique:equipos_patrones,numero_serie'],
-            'ultima_calibracion' => ['nullable', 'date'],
+            'ultima_calibracion' => ['nullable', 'date'], // Puede ser nula si no se ha calibrado aún
         ]);
 
-        // --- Lógica de Cálculo de Vigencia ---
+        // --- Lógica de Cálculo de 'proxima_calibracion' y 'estado' ---
         $ultimaCalibracion = $request->input('ultima_calibracion');
         $proximaCalibracion = null;
-        $vigente = false;
+        $estado = 'NO CUMPLE'; // Valor por defecto si no hay fecha de calibración
 
         if ($ultimaCalibracion) {
-            $proximaCalibracion = \Carbon\Carbon::parse($ultimaCalibracion)->addYear(); // 1 año de vigencia
-            $vigente = $proximaCalibracion->isFuture(); // Es vigente si la fecha futura aún no ha pasado
+            $proximaCalibracion = Carbon::parse($ultimaCalibracion)->addYear(); // 1 año de vigencia
+            
+            if ($proximaCalibracion->isFuture()) {
+                // Si la próxima calibración es en el futuro
+                if ($proximaCalibracion->diffInDays(now()) <= 30) { // Si faltan 30 días o menos para expirar
+                    $estado = 'CUMPLE PARCIALMENTE';
+                } else {
+                    $estado = 'CUMPLE';
+                }
+            } else {
+                $estado = 'NO CUMPLE'; // La fecha de próxima calibración ya pasó
+            }
         }
         // --- Fin Lógica de Cálculo ---
 
-        DB::transaction(function () use ($request, $proximaCalibracion, $vigente) {
+        DB::transaction(function () use ($request, $proximaCalibracion, $estado) {
             $equipo = EquipoPatron::create([
                 'identificador' => $request->identificador,
                 'descripcion' => $request->descripcion,
@@ -103,37 +119,37 @@ class EquipoPatronController extends Controller
                 'numero_serie' => $request->numero_serie,
                 'ultima_calibracion' => $request->ultima_calibracion,
                 'proxima_calibracion' => $proximaCalibracion,
-                'vigente' => $vigente,
+                'estado' => $estado, // Asignar el estado calculado
                 'created_by_user_id' => Auth::id(),
             ]);
 
-            Activity::performedOn($equipo)
+            Activity()->performedOn($equipo)
                 ->causedBy(Auth::user())
                 ->event('equipo_patron_created')
                 ->log('creó el equipo patrón: "' . $equipo->identificador . '".');
         });
 
-        return redirect()->route('equipos_patrones.index')->with('success', 'Equipo patrón creado exitosamente.');
+        return redirect()->route('admin.equipos-patrones.index')->with('success', 'Equipo patrón creado exitosamente.');
     }
 
     /**
-     * Display the specified resource.
+     * Muestra los detalles de un equipo patrón.
      */
     public function show(EquipoPatron $equipoPatron)
     {
-        return view('equipos_patrones.show', compact('equipoPatron'));
+        return view('admin.equipos_patrones.show', compact('equipoPatron'));
     }
 
     /**
-     * Show the form for editing the specified resource.
+     * Muestra el formulario para editar un equipo patrón existente.
      */
     public function edit(EquipoPatron $equipoPatron)
     {
-        return view('equipos_patrones.edit', compact('equipoPatron'));
+        return view('admin.equipos_patrones.edit', compact('equipoPatron'));
     }
 
     /**
-     * Update the specified resource in storage.
+     * Actualiza la información de un equipo patrón existente.
      */
     public function update(Request $request, EquipoPatron $equipoPatron)
     {
@@ -146,18 +162,27 @@ class EquipoPatronController extends Controller
             'ultima_calibracion' => ['nullable', 'date'],
         ]);
 
-        // --- Lógica de Cálculo de Vigencia (similar a store) ---
+        // --- Lógica de Cálculo de 'proxima_calibracion' y 'estado' (similar a store) ---
         $ultimaCalibracion = $request->input('ultima_calibracion');
         $proximaCalibracion = null;
-        $vigente = false;
+        $estado = 'NO CUMPLE';
 
         if ($ultimaCalibracion) {
-            $proximaCalibracion = \Carbon\Carbon::parse($ultimaCalibracion)->addYear();
-            $vigente = $proximaCalibracion->isFuture();
+            $proximaCalibracion = Carbon::parse($ultimaCalibracion)->addYear();
+            
+            if ($proximaCalibracion->isFuture()) {
+                if ($proximaCalibracion->diffInDays(now()) <= 30) {
+                    $estado = 'CUMPLE PARCIALMENTE';
+                } else {
+                    $estado = 'CUMPLE';
+                }
+            } else {
+                $estado = 'NO CUMPLE';
+            }
         }
         // --- Fin Lógica de Cálculo ---
 
-        DB::transaction(function () use ($request, $equipoPatron, $proximaCalibracion, $vigente) {
+        DB::transaction(function () use ($request, $equipoPatron, $proximaCalibracion, $estado) {
             $equipoPatron->update([
                 'identificador' => $request->identificador,
                 'descripcion' => $request->descripcion,
@@ -166,37 +191,37 @@ class EquipoPatronController extends Controller
                 'numero_serie' => $request->numero_serie,
                 'ultima_calibracion' => $request->ultima_calibracion,
                 'proxima_calibracion' => $proximaCalibracion,
-                'vigente' => $vigente,
-                // created_by_user_id no se actualiza
+                'estado' => $estado, // Asignar el estado calculado
             ]);
 
-            Activity::performedOn($equipoPatron)
+            Activity()->performedOn($equipoPatron)
                 ->causedBy(Auth::user())
                 ->event('equipo_patron_updated')
                 ->log('actualizó el equipo patrón: "' . $equipoPatron->identificador . '".');
         });
 
-        return redirect()->route('equipos_patrones.index')->with('success', 'Equipo patrón actualizado exitosamente.');
+        return redirect()->route('admin.equipos-patrones.index')->with('success', 'Equipo patrón actualizado exitosamente.');
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Elimina lógicamente un equipo patrón (soft delete).
      */
     public function destroy(EquipoPatron $equipoPatron)
     {
+        //dd($equipoPatron);
         DB::transaction(function () use ($equipoPatron) {
             $equipoPatron->delete(); // Soft delete
-            Activity::performedOn($equipoPatron)
+            Activity()->performedOn($equipoPatron)
                 ->causedBy(Auth::user())
                 ->event('equipo_patron_soft_deleted')
                 ->log('eliminó (soft delete) el equipo patrón: "' . $equipoPatron->identificador . '".');
         });
 
-        return redirect()->route('equipos_patrones.index')->with('success', 'Equipo patrón eliminado suavemente.');
+        return redirect()->route('admin.equipos-patrones.index')->with('success', 'Equipo patrón eliminado suavemente.');
     }
-    
-     /**
-     * Restore a soft-deleted resource.
+
+    /**
+     * Restaura un equipo patrón soft-deleted.
      */
     public function restore($id)
     {
@@ -204,17 +229,17 @@ class EquipoPatronController extends Controller
 
         DB::transaction(function () use ($equipoPatron) {
             $equipoPatron->restore();
-            Activity::performedOn($equipoPatron)
+            Activity()->performedOn($equipoPatron)
                 ->causedBy(Auth::user())
                 ->event('equipo_patron_restored')
                 ->log('restauró el equipo patrón: "' . $equipoPatron->identificador . '".');
         });
 
-        return redirect()->route('equipos_patrones.index')->with('success', 'Equipo patrón restaurado exitosamente.');
+        return redirect()->route('admin.equipos-patrones.index')->with('success', 'Equipo patrón restaurado exitosamente.');
     }
 
     /**
-     * Permanently remove the specified resource from storage.
+     * Elimina permanentemente un equipo patrón.
      */
     public function forceDelete($id)
     {
@@ -222,12 +247,12 @@ class EquipoPatronController extends Controller
 
         DB::transaction(function () use ($equipoPatron) {
             $equipoPatron->forceDelete();
-            Activity::performedOn(null)
+            Activity()->performedOn(null)
                 ->causedBy(Auth::user())
                 ->event('equipo_patron_force_deleted')
                 ->log('eliminó PERMANENTEMENTE el equipo patrón: "' . $equipoPatron->identificador . '".');
         });
 
-        return redirect()->route('equipos_patrones.index')->with('success', 'Equipo patrón eliminado permanentemente.');
+        return redirect()->route('admin.equipos-patrones.index')->with('success', 'Equipo patrón eliminado permanentemente.');
     }
 }

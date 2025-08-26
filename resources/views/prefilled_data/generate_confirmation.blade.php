@@ -39,7 +39,7 @@
             </div>
 
             {{-- Botón para Generar Documento (Dispara la acción POST) --}}
-            <form action="{{ route('documents.generate.predefined') }}" method="POST" class="text-center">
+            <form action="{{ route('documents.generate.predefined') }}" method="POST" class="text-center" target="_blank" onsubmit="return confirm('¿Generar este documento?\n asegure que los datos son correctos ');">
                 @csrf
                              
                 {{-- Selector de Unidad --}}

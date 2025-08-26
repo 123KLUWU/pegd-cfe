@@ -75,7 +75,7 @@
                         
                         <div class="mt-3 d-flex flex-wrap justify-content-between align-items-center">
                             {{-- Botón Principal: Generar Documento --}}
-                            <a href="{{ route('documents.customize.form', $template->id) }}" target="_blank" class="btn btn-primary btn-sm mb-2 me-2">Generar Documento</a>
+                            <a href="{{ route('documents.customize.form', $template->id) }}" class="btn btn-primary btn-sm mb-2 me-2">Generar Documento</a>
 
                             {{-- Botón "3 Puntitos" (Dropdown de Opciones Secundarias) --}}
                             <div class="dropdown mb-2">
