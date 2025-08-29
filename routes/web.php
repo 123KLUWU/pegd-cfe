@@ -24,56 +24,14 @@ use App\Http\Controllers\Admin\GeneratedDocumentController as AdminGeneratedDocu
 use App\Http\Controllers\UserGeneratedDocumentController;
 use App\Http\Controllers\EquipoPatronController;
 use App\Http\Controllers\Admin\EquipoPatronController as AdminEquipoPatronController;
-//use App\Http\Controllers\MailDocController;
+use App\Http\Controllers\MailDocController;
 use App\Models\GeneratedDocument;
-//use App\Mail\DocAdjuntoMail;
+use App\Mail\DocAdjuntoMail;
 use App\Services\DriveExporter;
-//use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Mail;
 
-/*
-Route::get('/test-send/{id}', function ($id, DriveExporter $exporter) {
-    $document = GeneratedDocument::findOrFail($id);
+Route::post('/emails/send-doc/{document}', [MailDocController::class, 'send'])->name('emails.send');
 
-    [$tmpPath, $filename] = $exporter->downloadWithNativeFormat($document->google_drive_id);
-
-    Mail::to('carlos.pous@hotmail.com')->send(new DocAdjuntoMail(
-        asunto:        'Prueba envío adjunto',
-        mensajePlano:  'Hola, este es un correo de prueba con el archivo.',
-        rutaAdjunto:   $tmpPath,
-        nombreAdjunto: $filename
-    ));
-
-    @unlink($tmpPath);
-
-    return "Correo enviado con adjunto $filename";
-});
-
-Route::get('/mail/test', function () {
-    \Illuminate\Support\Facades\Mail::raw('Prueba desde Laravel con Gmail', function ($m) {
-        $m->to('rrrchavarria@gmail.com')->subject('SMTP OK');
-    });
-    return 'Correo enviado (revisa tu inbox/spam)';
-});
-
-Route::get('/emails/send-doc/{document}', [MailDocController::class, 'form'])
-     ->name('emails.form');
-
-// Enviar el correo (adjunto exportado/descargado de Drive)
-Route::post('/emails/send-doc/{document}', [MailDocController::class, 'send'])
-     ->name('emails.send');
-
-Route::get('/mail/smoke', function () {
-    \Illuminate\Support\Facades\Mail::raw(
-        "Hola, prueba rápida desde Workspace SMTP.",
-        function ($m) {
-            $m->to('tu-correo-de-prueba@tudominio.com')
-              ->subject('Smoke Test Workspace SMTP');
-        }
-    );
-
-    return 'OK enviado';
-});
-*/
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
 
     Route::resource('equipos-patrones', AdminEquipoPatronController::class)->names('admin.equipos-patrones')->parameters(['equipos-patrones' => 'equipo_patron']);

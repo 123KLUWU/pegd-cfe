@@ -31,7 +31,8 @@
             </div>
 
             {{-- Botón para Generar Documento (Dispara la acción POST) --}}
-            <form action="{{ route('documents.generate.blank') }}" method="POST" class="text-center">
+            <form action="{{ route('documents.generate.blank') }}" method="POST" class="text-center"
+            target="_blank" onsubmit="return confirm('¿Seguro que quieres generar este documento?');">
                 @csrf
                 
                 <div class="mb-3">
