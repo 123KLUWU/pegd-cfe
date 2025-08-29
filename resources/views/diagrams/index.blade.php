@@ -8,34 +8,77 @@
     <h1>Diagramas y Manuales</h1>
 
     {{-- Formulario de Búsqueda y Filtros --}}
-    <form method="GET" action="{{ route('diagrams.index') }}" class="mb-4">
-        <div class="row g-3 align-items-end">
-            <div class="col-md-5">
-                <label for="search" class="form-label">Buscar por Nombre/Descripción:</label>
-                <input type="text" class="form-control" id="search" name="search" value="{{ $search_query }}" placeholder="Buscar...">
-            </div>
-            <div class="col-md-3">
-                <label for="type" class="form-label">Filtrar por Tipo:</label>
-                <select class="form-select" id="type" name="type">
-                    <option value="">Todos los Tipos</option>
-                    <option value="diagram" {{ $selected_type == 'diagram' ? 'selected' : '' }}>Diagramas</option>
-                    <option value="manual" {{ $selected_type == 'manual' ? 'selected' : '' }}>Manuales</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="category" class="form-label">Filtrar por Máquina:</label>
-                <select class="form-select" id="category" name="category">
-                    <option value="">Todas las Máquinas</option>
-                    @foreach ($available_categories as $category)
-                        <option value="{{ $category }}" {{ $selected_category == $category ? 'selected' : '' }}>{{ $category }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-primary w-100">Filtrar</button>
-            </div>
+    <form method="GET" class="row g-2 mb-3">
+        {{-- Búsqueda --}}
+        <div class="col-md-4">
+          <input type="text" name="search" class="form-control" placeholder="Buscar..."
+                 value="{{ $search_query }}">
         </div>
-    </form>
+      
+        {{-- Tipo --}}
+        <div class="col-md-2">
+          <select name="type" class="form-select">
+            <option value="">Tipo (todos)</option>
+            <option value="diagram" @selected($selected_type==='diagram')>Diagrama</option>
+            <option value="manual" @selected($selected_type==='manual')>Manual</option>
+          </select>
+        </div>
+      
+        {{-- Categoría de máquina 
+        <div class="col-md-3">
+          <select name="category" class="form-select">
+            <option value="">Categoría de máquina (todas)</option>
+            @foreach($available_categories as $cat)
+              <option value="{{ $cat }}" @selected($selected_category===$cat)>{{ $cat }}</option>
+            @endforeach
+          </select>
+        </div>
+        --}}
+        {{-- Unidad --}}
+        <div class="col-md-3">
+          <select name="unidad_id" class="form-select">
+            <option value="">Unidad (todas)</option>
+            @foreach($unidades as $u)
+              <option value="{{ $u->id }}" @selected($selected_unidad==$u->id)>{{ $u->unidad }}</option>
+            @endforeach
+          </select>
+        </div>
+      
+        {{-- Clasificación (con optgroup por group si viene) --}}
+        <div class="col-md-4">
+          <select name="classification_id" class="form-select">
+            <option value="">Clasificación (todas)</option>
+            @foreach($classifications->groupBy('group') as $grp => $items)
+              <optgroup label="{{ $grp ?? 'General' }}">
+                @foreach($items as $c)
+                  <option value="{{ $c->id }}" @selected($selected_classification==$c->id)>{{ $c->name }}</option>
+                @endforeach
+              </optgroup>
+            @endforeach
+          </select>
+        </div>
+      
+        {{-- Autómata --}}
+        <div class="col-md-4">
+          <select name="automata_id" class="form-select">
+            <option value="">Autómata (todos)</option>
+            @foreach($automatas as $a)
+              <option value="{{ $a->id }}" @selected($selected_automata==$a->id)>{{ $a->name }}</option>
+            @endforeach
+          </select>
+        </div>
+      
+        {{-- Botones --}}
+        <div class="col-md-2 d-grid">
+          <button class="btn btn-primary" type="submit">Filtrar</button>
+        </div>
+        {{-- 
+        <div class="col-md-2 d-grid">
+          <a class="btn btn-outline-secondary" href="{{ route('diagrams.index') }}">Limpiar</a>
+        </div>
+        --}}
+      </form>
+      
 
     <div class="row">
         @forelse ($diagrams as $diagram)

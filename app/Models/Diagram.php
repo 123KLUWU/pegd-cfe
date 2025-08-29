@@ -21,6 +21,7 @@ class Diagram extends Model
         'is_active',
         'created_by_user_id'
     ];
+
     protected $dates = [
         'deleted_at'];
 
@@ -33,4 +34,20 @@ class Diagram extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function unidad()
+    {
+        return $this->belongsTo(Unidad::class, 'unidad_id');
+    }
+
+    public function classification()
+    {
+        return $this->belongsTo(DiagramClassification::class, 'classification_id');
+    }
+
+    public function automata()
+    {
+        return $this->belongsTo(Automata::class, 'automata_id'); // usa el nombre real de tu modelo
+    }
+
 }

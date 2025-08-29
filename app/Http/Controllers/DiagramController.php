@@ -9,6 +9,9 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode; // Para generar QR
 use Barryvdh\DomPDF\Facade\Pdf; // ¡Importa la fachada de DomPDF!
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use App\Models\Unidad;
+use App\Models\Automata;
+use App\Models\DiagramClassification;
 
 class DiagramController extends Controller
 {
@@ -31,57 +34,80 @@ class DiagramController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Diagram::where('is_active', true);
-
-        /**
-         * logica para la busqueda
-         * se obtiene el input del search
-         * se buscan coincidencias en los parametros
-         * de los diagramas (nombre, descripcion, categoria de la maquina)
-         */
+        $query = Diagram::query()
+            ->where('is_active', true)
+            ->with(['unidad','classification','automata']);
+    
+        // --- Búsqueda libre ---
         $search = $request->input('search');
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                  ->orWhere('description', 'like', '%' . $search . '%')
-                  ->orWhere('machine_category', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%')
+                  ->orWhere('description', 'like', '%'.$search.'%')
+                  ->orWhere('machine_category', 'like', '%'.$search.'%');
             });
         }
-
-        // --- Lógica de Filtro por Tipo (diagram/manual) ---
+    
+        // --- Filtro Tipo (enum: diagram/manual) ---
         $filterType = $request->input('type');
-        if ($filterType && in_array($filterType, ['diagram', 'manual'])) {
+        if ($filterType && in_array($filterType, ['diagram','manual'])) {
             $query->where('type', $filterType);
         }
-
-        // --- Lógica de Filtro por Categoría de Máquina ---
+    
+        // --- Filtro Categoría de máquina (string exacto) ---
         $filterCategory = $request->input('category');
-        if ($filterCategory) {
+        if ($filterCategory !== null && $filterCategory !== '') {
             $query->where('machine_category', $filterCategory);
         }
-
-        /**
-         * Obtener los diagramas paginados
-         * Paginación de 10 por página
-         */
-        $diagrams = $query->orderBy('name')->paginate(10);
-
-        // Obtener todas las categorías de máquina únicas para el filtro (solo de diagramas activos)
+    
+        // --- NUEVOS filtros: Unidad / Clasificación / Autómata ---
+        $filterUnidad = $request->input('unidad_id');
+        if ($filterUnidad) {
+            $query->where('unidad_id', $filterUnidad);
+        }
+    
+        $filterClass = $request->input('classification_id');
+        if ($filterClass) {
+            $query->where('classification_id', $filterClass);
+        }
+    
+        $filterAutomata = $request->input('automata_id');
+        if ($filterAutomata) {
+            $query->where('automata_id', $filterAutomata);
+        }
+    
+        // Orden y paginación
+        $diagrams = $query->orderBy('name')->paginate(10)->appends($request->query());
+    
+        // Datos para selects
         $availableCategories = Diagram::where('is_active', true)
-                                      ->distinct('machine_category')
-                                      ->pluck('machine_category')
-                                      ->filter() // Eliminar nulos
-                                      ->sort(); // Ordenar alfabéticamente
-
-        // Pasar los datos a la vista
+            ->distinct()
+            ->orderBy('machine_category')
+            ->pluck('machine_category')
+            ->filter(); // quita null/''
+    
+        $unidades = Unidad::orderBy('unidad')->get(['id','unidad']);
+        $classifications = DiagramClassification::orderBy('name')->get(['id','name']);
+        $automatas = Automata::orderBy('name')->get(['id','name']); // ajusta columnas reales
+    
         return view('diagrams.index', [
             'diagrams' => $diagrams,
+    
+            // valores seleccionados (para mantener estado del filtro)
             'search_query' => $search,
             'selected_type' => $filterType,
             'selected_category' => $filterCategory,
-            'available_categories' => $availableCategories
+            'selected_unidad' => $filterUnidad,
+            'selected_classification' => $filterClass,
+            'selected_automata' => $filterAutomata,
+    
+            // catálogos
+            'available_categories' => $availableCategories,
+            'unidades' => $unidades,
+            'classifications' => $classifications,
+            'automatas' => $automatas,
         ]);
-    }
+    }    
 
     /**
      * Muestra la página de detalles de un diagrama/manual específico, incluyendo el QR.

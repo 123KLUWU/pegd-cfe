@@ -84,6 +84,17 @@
                             {{-- Botón Principal: Ver Documento en Drive --}}
                             <a href="https://docs.google.com/{{ $document->type }}/d/{{ $document->google_drive_id }}/edit" target="_blank" class="btn btn-primary btn-sm mb-2 me-2 flex-grow-1">Ver Documento</a>
 
+                            <a  href="#"
+                                class="btn btn-sm btn-outline-primary mb-2 js-send-doc"
+                                data-bs-toggle="modal"
+                                data-bs-target="#sendDocModal"
+                                data-action="{{ route('emails.send', $document->id) }}"
+                                data-document-title="{{ $document->title }}"
+                                data-default-subject="Documento PEGD"
+                                data-default-message="Hola,\n\nTe comparto el documento adjunto.\n\nSaludos.">
+                                Enviar adjunto
+                            </a>
+
                             {{-- Botón "3 Puntitos" (Dropdown de Opciones Secundarias) --}}
                             <div class="dropdown mb-2">
                                 <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="dropdownMenuButton_{{ $document->id }}" data-bs-toggle="dropdown" aria-expanded="false">
@@ -139,43 +150,78 @@
     </div>
 </div>
 
-<!-- Modal para mostrar el JSON de Datos -->
-<div class="modal fade" id="dataJsonModal" tabindex="-1" aria-labelledby="dataJsonModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="dataJsonModalLabel">Datos de Prellenado para: <span id="dataJsonDocumentTitle"></span></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Modal: Enviar adjunto -->
+<div class="modal fade" id="sendDocModal" tabindex="-1" aria-labelledby="sendDocModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form id="sendDocForm" method="POST" action="">
+          @csrf
+          <div class="modal-header">
+            <h5 class="modal-title" id="sendDocModalLabel">Enviar adjunto</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          </div>
+  
+          <div class="modal-body">
+            <div class="mb-2">
+              <label class="form-label">Documento</label>
+              <input type="text" id="docTitleField" class="form-control" value="" readonly>
             </div>
-            <div class="modal-body">
-                <pre id="dataJsonContent" class="bg-light p-3 rounded small"></pre>
+  
+            <div class="mb-2">
+              <label class="form-label">Destinatarios</label>
+              <input type="text" name="destinatarios" class="form-control" placeholder="persona@cfe.mx,otro@cfe.mx" required>
+              <small class="text-muted">Separa varios con comas.</small>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+  
+            <div class="mb-2">
+              <label class="form-label">Asunto</label>
+              <input type="text" id="subjectField" name="asunto" class="form-control" required>
             </div>
-        </div>
+  
+            <div class="mb-2">
+              <label class="form-label">Mensaje</label>
+              <textarea id="messageField" name="mensaje" rows="5" class="form-control"></textarea>
+            </div>
+  
+            <small class="text-muted">* El archivo se exporta/descarga de Drive automáticamente y se adjunta al correo.</small>
+          </div>
+  
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <button type="submit" class="btn btn-success" id="sendBtn">Enviar</button>
+          </div>
+        </form>
+      </div>
     </div>
-</div>
-
+  </div>
+  
+@endsection
 @push('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Lógica para el modal de datos JSON
-    const dataJsonModalElement = document.getElementById('dataJsonModal');
-    if (dataJsonModalElement) {
-        dataJsonModalElement.addEventListener('show.bs.modal', function (event) {
-            const button = event.relatedTarget; // Botón que disparó el modal
-            const dataJson = button.getAttribute('data-json');
-            const docTitle = button.getAttribute('data-title');
+document.addEventListener('DOMContentLoaded', function () {
+  const form = document.getElementById('sendDocForm');
+  const docTitleField = document.getElementById('docTitleField');
+  const subjectField = document.getElementById('subjectField');
+  const messageField = document.getElementById('messageField');
 
-            const modalTitle = dataJsonModalElement.querySelector('#dataJsonDocumentTitle');
-            const modalBodyContent = dataJsonModalElement.querySelector('#dataJsonContent');
+  // Al hacer click en el botón, inyectamos action y defaults
+  document.querySelectorAll('.js-send-doc').forEach(btn => {
+    btn.addEventListener('click', function () {
+      form.action = btn.dataset.action || '';
+      docTitleField.value = btn.dataset.documentTitle || '';
+      subjectField.value = btn.dataset.defaultSubject || 'Documento PEGD';
+      messageField.value = btn.dataset.defaultMessage || 'Te comparto el documento adjunto.';
+    });
+  });
 
-            modalTitle.textContent = docTitle;
-            modalBodyContent.textContent = dataJson; // Ya viene pre-formateado con JSON_PRETTY_PRINT
-        });
-    }
+  // (Opcional) UX: deshabilitar botón Enviar para evitar doble submit
+  const sendBtn = document.getElementById('sendBtn');
+  if (sendBtn) {
+    form.addEventListener('submit', function () {
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Enviando...';
+    });
+  }
 });
 </script>
 @endpush
-@endsection

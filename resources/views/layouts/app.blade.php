@@ -217,6 +217,12 @@
                   Hojas generadas por usuario
               </a>
             </li>
+            <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('user.generated-documents.grouped.units') }}">
+                <svg class="bi"><use xlink:href="#file-earmark-text"/></svg>
+                  Hojas generadas por unidad
+              </a>
+            </li>
             {{-- 
             <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="#">
@@ -265,6 +271,12 @@
               </a>
             </li>
             <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.equipos-patrones.index') }}">
+                <svg class="bi"><use xlink:href="#gear-wide-connected"/></svg>
+                Equipos patrones
+              </a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('settings') }}">
                 <svg class="bi"><use xlink:href="#gear-wide-connected"/></svg>
                 Settings
@@ -294,6 +306,7 @@
     <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
         @yield('content')
     </main>
+    @stack('scripts')
   </div>
 </div>
 </html>
