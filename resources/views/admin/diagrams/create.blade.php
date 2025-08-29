@@ -32,6 +32,52 @@
             @error('type')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
 
+        {{-- Unidad --}}
+        <div class="mb-3">
+            <label class="form-label">Unidad</label>
+            <select name="unidad_id" class="form-select">
+            <option value="">—</option>
+            @foreach($unidades as $u)
+                <option value="{{ $u->id }}" @selected(old('unidad_id', $diagram->unidad_id ?? null)==$u->id)>
+                {{ $u->unidad }}
+                </option>
+            @endforeach
+            </select>
+            @error('unidad_id') <div class="text-danger small">{{ $message }}</div> @enderror
+        </div>
+
+        {{-- Clasificación --}}
+        <div class="mb-3">
+            <label class="form-label">Clasificación</label>
+            <select name="classification_id" class="form-select">
+            <option value="">—</option>
+            @foreach($classifications->groupBy('name') as $grp => $items)
+                <optgroup label="{{ $grp ?? 'General' }}">
+                @foreach($items as $c)
+                    <option value="{{ $c->id }}" @selected(old('classification_id', $diagram->classification_id ?? null)==$c->id)>
+                    {{ $c->name }}
+                    </option>
+                @endforeach
+                </optgroup>
+            @endforeach
+            </select>
+            @error('classification_id') <div class="text-danger small">{{ $message }}</div> @enderror
+        </div>
+        
+        {{-- Autómata --}}
+        <div class="mb-3">
+            <label class="form-label">Autómata</label>
+            <select name="automata_id" class="form-select">
+            <option value="">—</option>
+            @foreach($automatas as $a)
+                <option value="{{ $a->id }}" @selected(old('automata_id', $diagram->automata_id ?? null)==$a->id)>
+                {{ $a->name }}
+                </option>
+            @endforeach
+            </select>
+            @error('automata_id') <div class="text-danger small">{{ $message }}</div> @enderror
+        </div>
+        {{-- 
         <div class="mb-3">
             <label for="machine_category" class="form-label">Categoría de Máquina:</label>
             <select class="form-select @error('machine_category') is-invalid @enderror" id="machine_category" name="machine_category">
@@ -39,11 +85,12 @@
                 @foreach($availableCategories as $category)
                     <option value="{{ $category }}" {{ old('machine_category') == $category ? 'selected' : '' }}>{{ $category }}</option>
                 @endforeach
-                {{-- Opcional: permitir introducir una nueva categoría si no está en la lista --}}
-                {{-- <option value="__new__">-- Nueva Categoría --</option> --}}
+                 Opcional: permitir introducir una nueva categoría si no está en la lista 
+                 <option value="__new__">-- Nueva Categoría --</option>
             </select>
             @error('machine_category')<div class="invalid-feedback">{{ $message }}</div>@enderror
         </div>
+        --}}
         {{-- Si implementas 'Nueva Categoría', necesitas JS para mostrar un input de texto --}}
 
 

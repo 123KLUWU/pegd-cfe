@@ -19,7 +19,10 @@ class Diagram extends Model
         'machine_category',
         'description',
         'is_active',
-        'created_by_user_id'
+        'created_by_user_id',
+        'unidad_id',
+        'classification_id',
+        'automata_id'
     ];
 
     protected $dates = [
