@@ -83,6 +83,40 @@
 
         {{-- CAMPOS DINÁMICOS PARA MAPPING_RULES_JSON (igual que antes) --}}
         <div class="mb-3">
+                    {{-- CAMPOS BASE: TAG, UNIDAD, SISTEMA, SERVICIO --}}
+            <label class="form-label">Campos base (se agregarán al JSON de mapeo automáticamente)</label>
+            <div class="vstack gap-2">
+
+                @php
+                    $baseFields = [
+                        ['label' => 'TAG', 'key' => 'TAG'],
+                        ['label' => 'Unidad', 'key' => 'UNIDAD'],
+                        ['label' => 'Sistema', 'key' => 'SISTEMA'],
+                        ['label' => 'Servicio', 'key' => 'SERVICIO'],
+                    ];
+                @endphp
+
+                @foreach ($baseFields as $bf)
+                    <div class="card p-3">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-3">
+                                <label class="form-label">{{ $bf['label'] }}</label>
+                                <input type="text" class="form-control" value="{{ strtoupper($bf['label']) }}" disabled>
+                                <input type="hidden" name="dynamic_keys[]" value="{{ $bf['key'] }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Celda en plantilla</label>
+                                <input type="text"
+                                    name="dynamic_values[]"
+                                    class="form-control"
+                                    placeholder="Ej. C9">
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+
+            </div>
+        {{-- FIN: CAMPOS BASE --}}
             <label class="form-label">Reglas de Mapeo (Clave Lógica: Ubicación en Plantilla):</label>
             <div id="key-value-fields-container-mapping">
                 @php
@@ -120,16 +154,58 @@
             @error('dynamic_keys')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
         </div>
         {{-- FIN: CAMPOS DINÁMICOS --}}
-
-        <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" value="1" id="is_active" name="is_active" {{ old('is_active', true) ? 'checked' : '' }}>
-            <label class="form-check-label" for="is_active">
-                Plantilla Activa (Disponible para usuarios)
-            </label>
-        </div>
+                {{-- Ocultos para inyectar TAG/UNIDAD/SISTEMA/SERVICIO dentro de dynamic_* --}}
+        <div id="hidden-base-as-dynamic"></div>
 
         <button type="submit" class="btn btn-primary">Guardar Plantilla</button>
         <a href="{{ route('admin.templates.index') }}" class="btn btn-secondary">Cancelar</a>
     </form>
 </div>
 @endsection
+@push('scripts')
+<script>
+(function() {
+    const form = document.querySelector('form[action="{{ route('admin.templates.store') }}"]');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        // Limpia los contenedores ocultos
+        const hiddenDyn = document.getElementById('hidden-base-as-dynamic');
+        const hiddenDef = document.getElementById('hidden-base-defaults');
+        hiddenDyn.innerHTML = '';
+        hiddenDef.innerHTML = '';
+
+        // Lee campos base
+        const baseData = {}; // { key: {cell:'', default:''}, ... }
+        form.querySelectorAll('[name^="base["]').forEach(inp => {
+            // base[tag][cell] -> key=tag, sub=cell
+            const match = inp.name.match(/^base\[(\w+)\]\[(key|cell|default)\]$/);
+            if (!match) return;
+            const k = match[1], sub = match[2];
+            baseData[k] = baseData[k] || {};
+            baseData[k][sub] = inp.value.trim();
+        });
+
+        // Inyecta como dynamic_keys[] / dynamic_values[]
+        Object.entries(baseData).forEach(([k, obj]) => {
+            if (obj.key && obj.cell) {
+                // dynamic: key -> cell
+                const keyInput = document.createElement('input');
+                keyInput.type = 'hidden';
+                keyInput.name = 'dynamic_keys[]';
+                keyInput.value = obj.key;
+
+                const valInput = document.createElement('input');
+                valInput.type = 'hidden';
+                valInput.name = 'dynamic_values[]';
+                valInput.value = (obj.cell || '').toUpperCase();
+
+                hiddenDyn.appendChild(keyInput);
+                hiddenDyn.appendChild(valInput);
+            }
+
+        });
+    });
+})();
+</script>
+@endpush

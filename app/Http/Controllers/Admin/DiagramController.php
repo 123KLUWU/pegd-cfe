@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage; // Para gestionar archivos en storage
 use Spatie\Activitylog\Models\Activity; // Para el registro de actividad
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Models\Unidad;
+use App\Models\Automata;
+use App\Models\DiagramClassification;
 
 class DiagramController extends Controller
 {
@@ -93,9 +96,17 @@ class DiagramController extends Controller
      */
     public function create()
     {
+        
         // Puedes pasarle un listado de categorías si las vas a tener fijas en un select
+        /*
         $availableCategories = Diagram::distinct('machine_category')->pluck('machine_category')->filter()->sort();
         return view('admin.diagrams.create', compact('availableCategories'));
+        */
+        return view('admin.diagrams.create', [
+            'unidades' => Unidad::orderBy('unidad')->get(['id','unidad']),
+            'classifications' => DiagramClassification::orderBy('name')->get(['id','name']),
+            'automatas' => Automata::orderBy('name')->get(['id','name']),
+        ]);
     }
 
     /**
@@ -110,6 +121,9 @@ class DiagramController extends Controller
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
             'diagram_file' => ['required', 'file', 'mimes:pdf,png,jpg,jpeg,gif,svg'], // Max 10MB
+            'unidad_id' => ['nullable','integer','exists:unidades,id'],
+            'classification_id' => ['nullable','integer','exists:diagram_classifications,id'],
+            'automata_id' => ['nullable','integer','exists:automatas,id'],
         ]);
 
         // Manejo del archivo subido
@@ -129,6 +143,9 @@ class DiagramController extends Controller
                     'description' => $request->description,
                     'is_active' => $request->boolean('is_active', true), // Default true if checkbox unchecked
                     'created_by_user_id' => Auth::id(),
+                    'unidad_id' => $request->unidad_id,
+                    'classification_id' => $request->classification_id,
+                    'automata_id' => $request->automata_id
                 ]);
 
                 // Registro de actividad
@@ -169,8 +186,16 @@ class DiagramController extends Controller
      */
     public function edit(Diagram $diagram)
     {
+        /*
         $availableCategories = Diagram::distinct('machine_category')->pluck('machine_category')->filter()->sort();
         return view('admin.diagrams.edit', compact('diagram', 'availableCategories'));
+        */
+        return view('admin.diagrams.edit', [
+            'diagram' => $diagram->load(['unidad','classification','automata']),
+            'unidades' => Unidad::orderBy('unidad')->get(['id','unidad']),
+            'classifications' => DiagramClassification::orderBy('name')->get(['id','name']),
+            'automatas' => Automata::orderBy('name')->get(['id','name']),
+        ]);
     }
 
     /**
@@ -185,6 +210,9 @@ class DiagramController extends Controller
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
             'diagram_file' => ['nullable', 'file', 'mimes:pdf,png,jpg,jpeg,gif,svg', 'max:10240'], // Opcional: para reemplazar archivo
+            'unidad_id' => ['nullable','integer','exists:unidades,id'],
+            'classification_id' => ['nullable','integer','exists:diagram_classifications,id'],
+            'automata_id' => ['nullable','integer','exists:automatas,id'],
         ]);
 
         $filePath = $diagram->file_path; // Mantener el path actual por defecto
@@ -211,6 +239,9 @@ class DiagramController extends Controller
                 'description' => $request->description,
                 'is_active' => $request->boolean('is_active', false),
                 'created_by_user_id' => Auth::id(), // Registrar quién lo actualizó, o dejar al original
+                'unidad_id' => $request->unidad_id,
+                'classification_id' => $request->classification_id,
+                'automata_id' => $request->automata_id
             ]);
 
             activity()
