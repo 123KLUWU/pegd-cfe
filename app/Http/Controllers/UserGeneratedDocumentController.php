@@ -13,6 +13,7 @@ use Spatie\Activitylog\Models\Activity;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\Tag;
 use App\Models\Unidad; 
+use App\Models\Supervisor;
 
 class UserGeneratedDocumentController extends Controller
 {
@@ -35,6 +36,7 @@ class UserGeneratedDocumentController extends Controller
     public function index(Request $request)
     {
         $query = GeneratedDocument::where('user_id', Auth::id())->with('template'); // Solo documentos del usuario actual
+        $supervisors = Supervisor::orderBy('name')->get(['name','email']);
 
         // --- Filtros ---
         $search = $request->input('search');
@@ -83,6 +85,7 @@ class UserGeneratedDocumentController extends Controller
             'selected_visibility' => $filterVisibility,
             'selected_status' => $filterStatus,
             'available_templates' => $templates,
+            'supervisors'    => $supervisors,
         ]);
     }
     

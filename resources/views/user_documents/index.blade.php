@@ -91,7 +91,7 @@
                                 data-action="{{ route('emails.send', $document->id) }}"
                                 data-document-title="{{ $document->title }}"
                                 data-default-subject="Documento PEGD"
-                                data-default-message="Hola,\n\nTe comparto el documento adjunto.\n\nSaludos.">
+                                data-default-message="Hola, Te comparto el documento adjunto. Saludos.">
                                 Enviar adjunto
                             </a>
 
@@ -167,9 +167,22 @@
               <input type="text" id="docTitleField" class="form-control" value="" readonly>
             </div>
   
+            {{-- Selector de Supervisor --}}
+            <div class="mb-2">
+              <label for="supervisorSelect" class="form-label">Supervisor</label>
+              <select id="supervisorSelect" class="form-select">
+                <option value="">— Seleccionar supervisor —</option>
+                @foreach($supervisors as $sup)
+                  <option value="{{ $sup->email }}">{{ $sup->name }} — {{ $sup->email }}</option>
+                @endforeach
+              </select>
+              <div class="form-text">Al elegir uno, se llenará el correo abajo.</div>
+            </div>
+  
             <div class="mb-2">
               <label class="form-label">Destinatarios</label>
-              <input type="text" name="destinatarios" class="form-control" placeholder="persona@cfe.mx,otro@cfe.mx" required>
+              <input type="text" id="destinatariosInput" name="destinatarios" class="form-control"
+                     placeholder="persona@cfe.mx,otro@cfe.mx" required>
               <small class="text-muted">Separa varios con comas.</small>
             </div>
   
@@ -193,35 +206,52 @@
         </form>
       </div>
     </div>
-  </div>
+  </div>  
   
 @endsection
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const form = document.getElementById('sendDocForm');
-  const docTitleField = document.getElementById('docTitleField');
-  const subjectField = document.getElementById('subjectField');
-  const messageField = document.getElementById('messageField');
+  const form             = document.getElementById('sendDocForm');
+  const docTitleField    = document.getElementById('docTitleField');
+  const subjectField     = document.getElementById('subjectField');
+  const messageField     = document.getElementById('messageField');
+  const destinatariosInp = document.getElementById('destinatariosInput');
+  const supervisorSelect = document.getElementById('supervisorSelect');
+  const sendBtn          = document.getElementById('sendBtn');
 
-  // Al hacer click en el botón, inyectamos action y defaults
+  // cuando se hace click en el botón de cada card
   document.querySelectorAll('.js-send-doc').forEach(btn => {
     btn.addEventListener('click', function () {
       form.action = btn.dataset.action || '';
       docTitleField.value = btn.dataset.documentTitle || '';
-      subjectField.value = btn.dataset.defaultSubject || 'Documento PEGD';
-      messageField.value = btn.dataset.defaultMessage || 'Te comparto el documento adjunto.';
+      subjectField.value  = btn.dataset.defaultSubject || 'Documento PEGD';
+      messageField.value  = btn.dataset.defaultMessage || 'Te comparto el documento adjunto.';
+      destinatariosInp.value = '';     // limpia por si quedó algo
+      supervisorSelect.value = '';     // resetea selección
+      ccMeCheck.checked = false;       // resetea copiarme
     });
   });
 
-  // (Opcional) UX: deshabilitar botón Enviar para evitar doble submit
-  const sendBtn = document.getElementById('sendBtn');
-  if (sendBtn) {
-    form.addEventListener('submit', function () {
-      sendBtn.disabled = true;
-      sendBtn.textContent = 'Enviando...';
-    });
-  }
+  // al cambiar supervisor -> llenar destinatarios con su email
+  supervisorSelect.addEventListener('change', function () {
+    const email = this.value.trim();
+    if (!email) return;
+    // si ya hay correos, agregamos con coma; si no, lo ponemos solo
+    if (destinatariosInp.value.trim().length) {
+      // evita duplicados simples
+      const existentes = destinatariosInp.value.split(',').map(s=>s.trim()).filter(Boolean);
+      if (!existentes.includes(email)) existentes.push(email);
+      destinatariosInp.value = existentes.join(', ');
+    } else {
+      destinatariosInp.value = email;
+    }
+  });
+
+  // UX: prevenir doble submit
+  form.addEventListener('submit', function () {
+    if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Enviando...'; }
+  });
 });
 </script>
 @endpush

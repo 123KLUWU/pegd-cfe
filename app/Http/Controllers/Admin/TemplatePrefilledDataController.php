@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB; // Para transacciones
 use App\Models\Tag; // Importa el modelo Tag (que ahora es Instrumento)
 use App\Models\Unidad;
+use App\Http\Requests\StoreTemplatePrefilledDataRequest;
+use App\Http\Requests\UpdateTemplatePrefilledDataRequest;
+use App\Models\Sistema;
+use App\Models\Servicio;
 
 class TemplatePrefilledDataController extends Controller
 {
@@ -73,110 +77,133 @@ class TemplatePrefilledDataController extends Controller
     {
         // Opcional: Podrías pasar la plantilla a la vista
         $instrumentos = unidad::all(); // Pasar instrumentos (Tags) a la vista
-        return view('admin.template_prefilled_data.create', compact('template', 'instrumentos'));
+            // Decodifica reglas para mostrar "sin reglas" si aplica (la vista también lo valida)
+    $raw   = $template->mapping_rules_json ?? '[]';
+    $rules = is_array($raw) ? $raw : json_decode($raw, true);
+
+    // Catálogos para los selects
+    $tags      = Tag::orderBy('tag')->get(['id','tag']);
+    $sistemas  = Sistema::orderBy('sistema')->get(['id','sistema']);
+    $servicios = Servicio::orderBy('servicio')->get(['id','servicio']);
+    $unidades  = Unidad::orderBy('unidad')->get(['id','unidad']);
+
+    return view('admin.template_prefilled_data.create', compact(
+        'template', 'tags', 'sistemas', 'servicios', 'unidades'
+    ));
     }
 
     // Muestra el formulario para editar un conjunto de datos prellenados existente
     public function edit(TemplatePrefilledData $prefilledData) // Route Model Binding
     {
-        // Accede a $prefilledData->data_json para mostrarlo en el formulario de edición
-        $instrumentos = Tag::all(); // Pasar instrumentos (Tags) a la vista
+        $template = $prefilledData->template; // relación belongsTo
 
-        return view('admin.template_prefilled_data.edit', compact('prefilledData', 'instrumentos'));
+        $raw   = $template->mapping_rules_json ?? '[]';
+        $rules = is_array($raw) ? $raw : json_decode($raw, true);
+        $rules = $rules ?: [];
+
+        $current = $prefilledData->data_json ?? [];
+        $ruleKeys    = array_keys($rules);
+        $currentKeys = array_keys($current);
+
+        // Detectar claves
+        $newKeys      = array_values(array_diff($ruleKeys, $currentKeys));    // nuevas en reglas
+        $obsoleteKeys = array_values(array_diff($currentKeys, $ruleKeys));    // sobran en data
+
+        $tags      = Tag::orderBy('tag')->get(['id','tag']);
+        $sistemas  = Sistema::orderBy('sistema')->get(['id','sistema']);
+        $servicios = Servicio::orderBy('servicio')->get(['id','servicio']);
+        $unidades  = Unidad::orderBy('unidad')->get(['id','unidad']);
+
+        return view('admin.template_prefilled_data.edit', compact(
+            'prefilledData', 'template', 'rules', 'current', 'newKeys', 'obsoleteKeys',
+            'tags', 'sistemas', 'servicios', 'unidades'
+        ));
     }
-    public function store(Request $request)
+    
+    public function store(StoreTemplatePrefilledDataRequest $request, Template $template)
     {
-        $request->validate([
-            'template_id' => ['required', 'exists:templates,id'],
-            'instrumento_tag_id' => ['nullable', 'exists:tags,id'],
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            // Validar los arrays de claves y valores dinámicos
-            'dynamic_keys.*' => ['nullable', 'string', 'max:255'], // Las claves pueden ser nulas para filas vacías
-            'dynamic_values.*' => ['nullable', 'string'], // Los valores también pueden ser nulos
-    ]);
+        $validated = $request->validated();
 
-    $dataJson = [];
-    $keys = $request->input('dynamic_keys');
-    $values = $request->input('dynamic_values');
+        // Fuente de verdad: claves desde la plantilla
+        $raw   = $template->mapping_rules_json ?? '[]';
+        $rules = is_array($raw) ? $raw : json_decode($raw, true);
+        $rules = $rules ?: [];
+        $keys  = array_keys($rules);
 
-    if ($keys && is_array($keys)) {
-        foreach ($keys as $index => $key) {
-            if (!empty($key)) { // Solo procesa si la clave no está vacía
-                $dataJson[$key] = $values[$index] ?? null; // Asigna el valor
-            }
+        if (empty($keys)) {
+            return back()->withInput()->with('error', 'La plantilla no tiene reglas de mapeo.');
         }
-    }
 
-    // Opcional: Si quieres asegurar que al menos un par clave-valor fue enviado
-    if (empty($dataJson) && !$request->filled('description')) { // Si no hay datos Y la descripción también está vacía
-        return back()->withInput()->withErrors(['dynamic_keys' => 'Debe añadir al menos un par clave-valor para los datos prellenados.']);
-    }
-
-    DB::transaction(function () use ($request, $dataJson) {
-        TemplatePrefilledData::create([
-            'template_id' => $request->template_id,
-            'name' => $request->name,
-            'description' => $request->description,
-            'data_json' => $dataJson, // Laravel lo guardará como JSON automáticamente
-            'is_default_option' => $request->has('is_default_option'),
-            'created_by_user_id' => Auth::id(),
-            'instrumento_tag_id' => $request->instrumento_tag_id, // <-- Guardar el ID del instrumento
-
-            // ... otros FKs como tag_id, unidad_id si los manejas aquí directamente
-        ]);
-    });
-
-    return redirect()->route('admin.templates.prefilled-data.edit', $request->template_id)
-                     ->with('success', 'Formato prellenado creado exitosamente.');
-}
-
-// El método update() sería casi idéntico, usando $prefilledData->update(...)
-// Asegúrate de que en edit(), $prefilledData->data_json se pasa al Blade para el @forelse
-// para que los campos dinámicos se prellenen con los datos existentes.
-// La validación y construcción del JSON es la misma.
-// ...
-    // Actualiza un conjunto de datos prellenados existente
-    public function update(Request $request, TemplatePrefilledData $prefilledData)
-    {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'instrumento_tag_id' => ['nullable', 'exists:tags,id'],
-            'data_json_raw' => ['required_without:dynamic_data_keys', 'nullable', 'json'],
-            'dynamic_data_keys.*' => ['nullable', 'string', 'max:255'],
-            'dynamic_data_values.*' => ['nullable', 'string'],
-        ]);
-
+        $values = $validated['data_values'] ?? [];
         $dataJson = [];
-        if ($request->has('data_json_raw')) {
-            $dataJson = json_decode($request->input('data_json_raw'), true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                return back()->withInput()->withErrors(['data_json_raw' => 'El formato JSON es inválido.']);
-            }
-        } elseif ($request->has('dynamic_data_keys') && is_array($request->input('dynamic_data_keys'))) {
-            $keys = $request->input('dynamic_data_keys');
-            $values = $request->input('dynamic_data_values');
-            foreach ($keys as $index => $key) {
-                if (!empty($key)) {
-                    $dataJson[$key] = $values[$index] ?? null;
-                }
+        foreach ($keys as $k) {
+            $dataJson[$k] = array_key_exists($k, $values) && $values[$k] !== '' ? $values[$k] : null;
+        }
+
+        // (Opcional) evitar duplicados por combinación (ajusta a tus reglas)
+        $exists = TemplatePrefilledData::where('template_id', $template->id)
+            ->when(!empty($validated['name']), fn($q) => $q->where('name', $validated['name']))
+            ->first();
+
+        if ($exists) {
+            return back()->withInput()->with('error', 'Ya existe un prellenado con ese nombre para esta plantilla.');
+        }
+
+        TemplatePrefilledData::create([
+            'template_id' => $template->id,
+            'name'        => $validated['name'] ?? null,
+            'tag_id'      => $validated['tag_id'] ?? null,
+            'sistema_id'  => $validated['sistema_id'] ?? null,
+            'servicio_id' => $validated['servicio_id'] ?? null,
+            'unidad_id'   => $validated['unidad_id'] ?? null,
+            'data_json'   => $dataJson,
+        ]);
+
+        return redirect()->route('admin.templates.prefilled-data.index')->with('success', 'Prellenado creado correctamente.');
+    }
+
+    public function update(UpdateTemplatePrefilledDataRequest $request, TemplatePrefilledData $prefilledData)
+    {
+        $validated = $request->validated();
+
+        $template = $prefilledData->template;
+        $raw   = $template->mapping_rules_json ?? '[]';
+        $rules = is_array($raw) ? $raw : json_decode($raw, true);
+        $rules = $rules ?: [];
+
+        $ruleKeys = array_keys($rules);
+        if (empty($ruleKeys)) {
+            return back()->withInput()->with('error', 'La plantilla no tiene reglas de mapeo.');
+        }
+
+        $values = $validated['data_values'] ?? [];
+
+        // 1) Construir con sólo las claves actuales de la plantilla:
+        $dataJson = [];
+        foreach ($ruleKeys as $k) {
+            $dataJson[$k] = array_key_exists($k, $values) && $values[$k] !== '' ? $values[$k] : null;
+        }
+
+        // 2) (Estrategia por defecto) PRESERVAR claves obsoletas ya guardadas
+        //    para no perder info histórica, salvo que marques lo contrario.
+        //    Si quieres permitir "limpiar" obsoletas al marcar un checkbox, agrega:
+        //    if (!$request->boolean('drop_obsolete')) { ... }  (y un checkbox en la vista)
+        $current = $prefilledData->data_json ?? [];
+        foreach ($current as $k => $v) {
+            if (!array_key_exists($k, $dataJson)) {
+                $dataJson[$k] = $v; // conservar obsoleto
             }
         }
 
-        DB::transaction(function () use ($request, $prefilledData, $dataJson) {
-            $prefilledData->update([
-                'name' => $request->name,
-                'description' => $request->description,
-                'data_json' => $dataJson,
-                'instrumento_tag_id' => $request->instrumento_tag_id,
-                'is_default_option' => $request->has('is_default_option'),
-            ]);
-        });
+        $prefilledData->update([
+            'name'        => $validated['name'] ?? $prefilledData->name,
+            'tag_id'      => $validated['tag_id'] ?? null,
+            'sistema_id'  => $validated['sistema_id'] ?? null,
+            'servicio_id' => $validated['servicio_id'] ?? null,
+            'unidad_id'   => $validated['unidad_id'] ?? null,
+            'data_json'   => $dataJson,
+        ]);
 
-        return redirect()->route('admin.templates.prefilled-data.edit', $prefilledData->template_id)
-                         ->with('success', 'Formato prellenado actualizado exitosamente.');
+        return redirect()->route('admin.templates.prefilled-data.index')->with('success', 'Prellenado actualizado.');
     }
-
-    // ... otros métodos (show, delete) ...
 }

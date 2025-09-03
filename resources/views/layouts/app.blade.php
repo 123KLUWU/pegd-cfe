@@ -265,6 +265,12 @@
               </a>
             </li>
             <li class="nav-item">
+              <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.supervisores.index') }}">
+                <svg class="bi"><use xlink:href="#gear-wide-connected"/></svg>
+                Supervisores
+              </a>
+            </li>
+            <li class="nav-item">
               <a class="nav-link d-flex align-items-center gap-2" href="{{ route('generated-documents.index') }}">
                 <svg class="bi"><use xlink:href="#file-earmark"/></svg>
                  Documentos generados
