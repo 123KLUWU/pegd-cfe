@@ -29,6 +29,22 @@ use App\Models\GeneratedDocument;
 use App\Mail\DocAdjuntoMail;
 use App\Services\DriveExporter;
 use Illuminate\Support\Facades\Mail;
+use App\Http\Controllers\Admin\SupervisorController as AdminSupervisorController;
+
+Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {
+        Route::resource('supervisores', AdminSupervisorController::class)
+            ->parameters(['supervisores' => 'supervisor']);
+
+        // Opcional: acciones para SoftDeletes
+        Route::post('supervisores/{supervisor}/restore', [AdminSupervisorController::class, 'restore'])
+            ->withTrashed()
+            ->name('supervisores.restore');
+
+        Route::delete('supervisores/{supervisor}/force', [AdminSupervisorController::class, 'forceDelete'])
+            ->withTrashed()
+            ->name('supervisores.force-delete');
+    });
+
 
 Route::post('/emails/send-doc/{document}', [MailDocController::class, 'send'])->name('emails.send');
 

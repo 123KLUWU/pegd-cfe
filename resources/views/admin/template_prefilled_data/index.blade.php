@@ -20,6 +20,13 @@
             {{ session('error') }}
         </div>
     @endif
+    
+    {{-- Botón: Añadir nuevo (abre modal de selección de plantilla) --}}
+    <div class="d-flex justify-content-start mb-3">
+        <button class="btn btn-success mb-3" data-bs-toggle="modal" data-bs-target="#modalElegirPlantilla">
+            Añadir nuevo
+        </button>
+    </div>
 
     {{-- Formulario de Búsqueda y Filtros --}}
     <form method="GET" action="{{ route('admin.templates.prefilled-data.index') }}" class="mb-4">
@@ -114,4 +121,84 @@
         {{ $prefilledData->appends(request()->query())->links() }}
     </div>
 </div>
+
+{{-- Modal: Elegir plantilla para crear un prellenado --}}
+<div class="modal fade" id="modalElegirPlantilla" tabindex="-1" aria-labelledby="modalElegirPlantillaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 id="modalElegirPlantillaLabel" class="modal-title">Elegir plantilla</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+  
+        <div class="modal-body">
+          @if(isset($templates) && $templates->count())
+            {{-- Buscador en el modal (cliente) --}}
+            <div class="mb-3">
+                <input type="text" id="templateSearch" class="form-control" placeholder="Buscar plantilla por nombre...">
+            </div>
+  
+            {{-- Lista de plantillas --}}
+            <div class="list-group" id="templatesList">
+                @foreach($templates as $tpl)
+                  <div class="list-group-item d-flex justify-content-between align-items-start" data-template-name="{{ Str::lower($tpl->name ?? $tpl->title ?? 'plantilla') }}">
+                      <div class="me-3">
+                          <div class="fw-semibold">{{ $tpl->name ?? $tpl->title ?? 'Plantilla #'.$tpl->id }}</div>
+                          @if(!empty($tpl->description))
+                            <div class="text-muted small">{{ $tpl->description }}</div>
+                          @endif
+                          @if(!empty($tpl->mapping_rules_json))
+                            <span class="badge bg-success mt-1">Con reglas</span>
+                          @else
+                            <span class="badge bg-secondary mt-1">Sin reglas</span>
+                          @endif
+                      </div>
+  
+                      <div class="text-nowrap">
+                          {{-- Enlace a la ruta de create con {template} en la URL --}}
+                          {{-- Opción A: si tienes la ruta nombrada, descomenta y ajusta el name --}}
+                          {{-- <a class="btn btn-primary"
+                              href="{{ route('admin.templates.prefilled-data.create', ['template' => $tpl->id]) }}">
+                              Usar esta plantilla
+                             </a> --}}
+                          <a class="btn btn-primary"
+                             href="{{ route('admin.templates.prefilled-data.create', ['template' => $tpl->id]) }}">
+                             Usar esta plantilla
+                          </a>
+                      </div>
+                  </div>
+                @endforeach
+            </div>
+          @else
+            <div class="alert alert-info">
+                No hay plantillas disponibles para crear prellenados.
+            </div>
+          @endif
+        </div>
+  
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  {{-- Filtro cliente (sin assets externos) --}}
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+      var input = document.getElementById('templateSearch');
+      var list  = document.getElementById('templatesList');
+      if (!input || !list) return;
+  
+      input.addEventListener('input', function () {
+          var term = (this.value || '').toLowerCase().trim();
+          var items = list.querySelectorAll('.list-group-item');
+          items.forEach(function (el) {
+              var name = el.getAttribute('data-template-name') || '';
+              el.style.display = name.indexOf(term) !== -1 ? '' : 'none';
+          });
+      });
+  });
+  </script>
+  
 @endsection
