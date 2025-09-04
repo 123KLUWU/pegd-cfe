@@ -94,4 +94,10 @@ class AdminController extends Controller
         return redirect()->route('admin.users.pending')->with('success', 'Usuario ' . $user->name . ' ha sido rechazado.');
         */
     }
+    public function index()
+    {
+        // Puedes pasar conteos, últimas actualizaciones, etc.
+        // $stats = [...];
+        return view('admin.index'); // resources/views/admin/index.blade.php
+    }
 }
