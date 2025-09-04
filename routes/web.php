@@ -117,6 +117,7 @@ Route::middleware(['auth', 'role:admin|permission:manage users'])->prefix('admin
 
 
     Route::get('/users/all', [AdminController::class, 'manageUsers'])->name('admin.manage_users');
+    Route::get('/', [AdminController::class, 'index'])->name('admin.index');
 });
 
 Route::get('/users/pending', [AdminController::class, 'showPendingUsers'])->name('admin.users.pending');
