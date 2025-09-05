@@ -22,7 +22,8 @@ class Diagram extends Model
         'created_by_user_id',
         'unidad_id',
         'classification_id',
-        'automata_id'
+        'automata_id',
+        'sistema_id'
     ];
 
     protected $dates = [
@@ -52,5 +53,8 @@ class Diagram extends Model
     {
         return $this->belongsTo(Automata::class, 'automata_id'); // usa el nombre real de tu modelo
     }
-
+    public function sistema()
+    {
+        return $this->belongsTo(Sistema::class); // Assuming App\Models\Sistema exists
+    }
 }
