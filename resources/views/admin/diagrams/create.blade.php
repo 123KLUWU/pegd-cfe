@@ -46,20 +46,6 @@
             @error('unidad_id') <div class="text-danger small">{{ $message }}</div> @enderror
         </div>
 
-        {{-- Unidad --}}
-        <div class="mb-3">
-            <label class="form-label">Sistema</label>
-            <select name="sistema_id" class="form-select">
-            <option value="">—</option>
-            @foreach($sistemas as $sis)
-                <option value="{{ $sis->id }}" @selected(old('sistema_id', $diagram->sistema_id ?? null)==$sis->id)>
-                {{ $sis->clave}} {{ $sis->sistema  }}
-                </option>
-            @endforeach
-            </select>
-            @error('sistema_id') <div class="text-danger small">{{ $message }}</div> @enderror
-        </div>
-
         {{-- Clasificación --}}
         <div class="mb-3">
             <label class="form-label">Clasificación</label>

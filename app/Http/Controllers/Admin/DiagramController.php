@@ -14,7 +14,6 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use App\Models\Unidad;
 use App\Models\Automata;
 use App\Models\DiagramClassification;
-use App\Models\Sistema;
 
 class DiagramController extends Controller
 {
@@ -107,7 +106,6 @@ class DiagramController extends Controller
             'unidades' => Unidad::orderBy('unidad')->get(['id','unidad']),
             'classifications' => DiagramClassification::orderBy('name')->get(['id','name']),
             'automatas' => Automata::orderBy('name')->get(['id','name']),
-            'sistemas' => Sistema::orderBy('sistema')->get(['id','clave','sistema']),
         ]);
     }
 
@@ -126,7 +124,6 @@ class DiagramController extends Controller
             'unidad_id' => ['nullable','integer','exists:unidades,id'],
             'classification_id' => ['nullable','integer','exists:diagram_classifications,id'],
             'automata_id' => ['nullable','integer','exists:automatas,id'],
-            'sistema_id' => ['nullable','integer','exists:sistemas,id'],
         ]);
 
         // Manejo del archivo subido
@@ -148,8 +145,7 @@ class DiagramController extends Controller
                     'created_by_user_id' => Auth::id(),
                     'unidad_id' => $request->unidad_id,
                     'classification_id' => $request->classification_id,
-                    'automata_id' => $request->automata_id,
-                    'sistema_id' => $request->sistema_id
+                    'automata_id' => $request->automata_id
                 ]);
 
                 // Registro de actividad
