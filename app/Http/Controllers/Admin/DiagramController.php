@@ -314,4 +314,168 @@ class DiagramController extends Controller
 
         return redirect()->route('admin.diagrams.index')->with('success', $diagram->type . ' eliminado permanentemente.');
     }
+    
+    public function bulkCreate()
+    {
+        // Catálogos con los nombres/columnas reales de tu BD
+        $unidades  = Unidad::orderBy('unidad')->get(['id','unidad']);
+        $automatas = Automata::orderBy('name')->get(['id','name']);
+        $sistemas  = Sistema::orderBy('sistema')->get(['id','clave','sistema']);
+        $classif   = DiagramClassification::orderBy('name')->get(['id','name']);
+
+        // Vista que tú definas (puede ser sencilla al inicio)
+        return view('admin.diagrams.bulk', compact('unidades','automatas','sistemas','classif'));
+    }
+
+    /**
+ * Sube en masa aplicando metadatos globales. Sin AJAX.
+ * Luego redirige a una pantalla de revisión para editar por archivo (opcional).
+ */
+public function bulkStore(Request $request)
+{
+    $validated = $request->validate([
+        'files'                 => ['required','array','min:1'],
+        'files.*'               => ['file','mimes:pdf'],
+        'unidad_id'             => ['nullable','exists:unidades,id'],
+        'automata_id'           => ['nullable','exists:automatas,id'],
+        'sistema_id'            => ['nullable','exists:sistemas,id'],
+        'classification_id'     => ['nullable','exists:diagram_classifications,id'],
+        'type_for_all'          => ['nullable','in:diagram,manual'],
+        'is_active_all'         => ['nullable','boolean'],
+        'description_all'       => ['nullable','string','max:5000'],
+        'machine_category_all'  => ['nullable','string','max:255'],
+    ]);
+
+    $user = $request->user();
+    $createdIds = [];
+    $errors = [];
+
+    $type     = $request->input('type_for_all', 'diagram') ?: 'diagram';
+    $isActive = $request->boolean('is_active_all', true);
+
+    foreach ($request->file('files') as $file) {
+        $original = $file->getClientOriginalName();
+        $name     = pathinfo($original, PATHINFO_FILENAME);
+
+        try {
+            $filePath = $file->store('diagrams', 'public');
+
+            DB::transaction(function () use ($request, $filePath, $original, $name, $type, $isActive, $user, &$createdIds) {
+                $diagram = \App\Models\Diagram::create([
+                    'name'               => $name,
+                    'file_path'          => $filePath,
+                    'file_original_name' => $original,
+                    'type'               => $type,
+                    'machine_category'   => $request->input('machine_category_all'),
+                    'description'        => $request->input('description_all'),
+                    'is_active'          => $isActive,
+                    'created_by_user_id' => $user->id,
+                    'unidad_id'          => $request->input('unidad_id'),
+                    'classification_id'  => $request->input('classification_id'),
+                    'automata_id'        => $request->input('automata_id'),
+                    'sistema_id'         => $request->input('sistema_id'),
+                ]);
+
+                $createdIds[] = $diagram->id;
+
+                activity()
+                    ->performedOn($diagram)
+                    ->causedBy($user)
+                    ->event('diagram_uploaded_bulk')
+                    ->log('carga masiva: subió el ' . $diagram->type . ' "' . $diagram->name . '"');
+            });
+        } catch (\Throwable $e) {
+            // Limpieza si falló tras guardar archivo
+            try {
+                if (!empty($filePath) && Storage::disk('public')->exists($filePath)) {
+                    Storage::disk('public')->delete($filePath);
+                }
+            } catch (\Throwable $ignore) {}
+            $errors[] = "Fallo '{$original}': ".$e->getMessage();
+            \Log::error('[BulkUpload] '.$e->getMessage(), ['file' => $original]);
+        }
+    }
+
+    // Guarda en sesión los IDs recién creados para revisarlos/editar
+    $request->session()->put('bulk_created_ids', $createdIds);
+    $request->session()->put('bulk_errors', $errors);
+
+    // Redirige a pantalla de revisión (no AJAX)
+    return redirect()->route('admin.diagramas.bulk.review');
+}
+
+/**
+ * Muestra los elementos recién creados (guardados en sesión) para editar por archivo.
+ */
+public function bulkReview(Request $request)
+{
+    $ids = $request->session()->get('bulk_created_ids', []);
+    $errors = $request->session()->get('bulk_errors', []);
+
+    if (empty($ids)) {
+        return redirect()->route('admin.diagramas.bulk.create')
+            ->with('warning', 'No hay archivos para revisar. Sube primero algunos PDFs.');
+    }
+
+    $diagrams = Diagram::whereIn('id', $ids)->get();
+
+    // Catálogos para selects
+    $unidades  = Unidad::orderBy('unidad')->get(['id','unidad']);
+    $automatas = Automata::orderBy('name')->get(['id','name']);
+    $sistemas  = Sistema::orderBy('sistema')->get(['id','clave','sistema']);
+    $classif   = DiagramClassification::orderBy('name')->get(['id','name']);
+
+    return view('admin.diagrams.bulk_review', compact('diagrams','unidades','automatas','sistemas','classif','errors'));
+}
+
+/**
+ * Recibe actualización por archivo (sin AJAX).
+ */
+public function bulkUpdate(Request $request)
+{
+    $validated = $request->validate([
+        'diagram_id'            => ['required','array','min:1'],
+        'diagram_id.*'          => ['required','integer','exists:diagrams,id'],
+        'unidad_id.*'           => ['nullable','integer','exists:unidades,id'],
+        'automata_id.*'         => ['nullable','integer','exists:automatas,id'],
+        'sistema_id.*'          => ['nullable','integer','exists:sistemas,id'],
+        'classification_id.*'   => ['nullable','integer','exists:diagram_classifications,id'],
+        'type.*'                => ['nullable','in:diagram,manual'],
+        'is_active.*'           => ['nullable','boolean'],
+        'name.*'                => ['nullable','string','max:255'],
+        'machine_category.*'    => ['nullable','string','max:255'],
+        'description.*'         => ['nullable','string','max:5000'],
+    ]);
+
+    $ids = $request->input('diagram_id', []);
+    foreach ($ids as $idx => $id) {
+        $diagram = \App\Models\Diagram::find($id);
+        if (!$diagram) continue;
+
+        $diagram->update([
+            'name'               => $request->input("name.$idx", $diagram->name),
+            'type'               => $request->input("type.$idx", $diagram->type ?: 'diagram'),
+            'is_active'          => (bool) $request->input("is_active.$idx", $diagram->is_active),
+            'machine_category'   => $request->input("machine_category.$idx", $diagram->machine_category),
+            'description'        => $request->input("description.$idx", $diagram->description),
+            'unidad_id'          => $request->input("unidad_id.$idx"),
+            'classification_id'  => $request->input("classification_id.$idx"),
+            'automata_id'        => $request->input("automata_id.$idx"),
+            'sistema_id'         => $request->input("sistema_id.$idx"),
+        ]);
+
+        activity()
+            ->performedOn($diagram)
+            ->causedBy(Auth::user())
+            ->event('diagram_updated_bulk')
+            ->log('carga masiva: actualizó metadatos del ' . $diagram->type . ' "' . $diagram->name . '"');
+    }
+
+    // Limpia la sesión tras actualizar
+    $request->session()->forget('bulk_created_ids');
+    $request->session()->forget('bulk_errors');
+
+    return redirect()->route('admin.diagramas.bulk.create')
+        ->with('success', 'Carga masiva completada y metadatos actualizados.');
+}
 }
