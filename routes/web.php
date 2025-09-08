@@ -133,6 +133,15 @@ Route::middleware(['auth', 'role:admin|permission:manage diagrams'])->prefix('ad
     Route::post('diagrams/{id}/restore', [AdminDiagramController::class, 'restore'])->name('admin.diagrams.restore');
     // Si queremos un show custom (por ejemplo para ver el detalle y el QR)
     Route::get('diagrams/{diagram}', [AdminDiagramController::class, 'show'])->name('admin.diagrams.show');
+
+    Route::get('diagramas/carga-masiva', [AdminDiagramController::class, 'bulkCreate'])->name('admin.diagramas.bulk.create');
+
+    Route::post('diagramas/carga-masiva', [AdminDiagramController::class, 'bulkStore'])->name('admin.diagramas.bulk.store');
+
+    Route::get('diagramas/carga-masiva/revision', [AdminDiagramController::class, 'bulkReview'])->name('admin.diagramas.bulk.review');
+
+    Route::post('diagramas/carga-masiva/actualizar', [AdminDiagramController::class, 'bulkUpdate'])->name('admin.diagramas.bulk.update');
+
 });
 
 Route::get('/diagrams/{diagram}/qr-pdf', [DiagramController::class, 'generateQrPdf'])->name('diagrams.generate_qr_pdf');

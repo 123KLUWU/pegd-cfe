@@ -9,6 +9,8 @@
 
     <a href="{{ route('admin.diagrams.create') }}" class="btn btn-success mb-3">Subir Nuevo Diagrama/Manual</a>
 
+    <a href="{{ route('admin.diagramas.bulk.create') }}" class="btn btn-success mb-3">Carga masiva de archivos</a>
+
     @if (session('success'))
         <div class="alert alert-success mt-3" role="alert">
             {{ session('success') }}
