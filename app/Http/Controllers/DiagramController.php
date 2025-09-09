@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Unidad;
 use App\Models\Automata;
 use App\Models\DiagramClassification;
+use App\Models\Sistema;
 
 class DiagramController extends Controller
 {
@@ -75,7 +76,11 @@ class DiagramController extends Controller
         if ($filterAutomata) {
             $query->where('automata_id', $filterAutomata);
         }
-    
+
+        $filterSistema = $request->input('sistema_id');
+        if ($filterSistema) {
+            $query->where('sistema_id', $filterSistema);
+        }
         // Orden y paginación
         $diagrams = $query->orderBy('name')->paginate(10)->appends($request->query());
     
@@ -89,7 +94,8 @@ class DiagramController extends Controller
         $unidades = Unidad::orderBy('unidad')->get(['id','unidad']);
         $classifications = DiagramClassification::orderBy('name')->get(['id','name']);
         $automatas = Automata::orderBy('name')->get(['id','name']); // ajusta columnas reales
-    
+        $sistemas = Sistema::orderBy('clave')->get(['id', 'clave','sistema']);
+
         return view('diagrams.index', [
             'diagrams' => $diagrams,
     
@@ -100,12 +106,14 @@ class DiagramController extends Controller
             'selected_unidad' => $filterUnidad,
             'selected_classification' => $filterClass,
             'selected_automata' => $filterAutomata,
+            'selected_sistema' => $filterSistema,
     
             // catálogos
             'available_categories' => $availableCategories,
             'unidades' => $unidades,
             'classifications' => $classifications,
             'automatas' => $automatas,
+            'sistemas' => $sistemas,
         ]);
     }    
 
