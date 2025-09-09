@@ -67,7 +67,19 @@
             @endforeach
           </select>
         </div>
-      
+
+        {{-- Autómata --}}
+          <div class="col-md-4">
+            <select name="sistema_id" class="form-select">
+                <option value="">sistema (todos)</option>
+                  @foreach($sistemas as $sis)
+                    <option value="{{ $sis->id }}" @selected($selected_sistema==$sis->id)>{{ $sis->clave }} {{ $sis->sistema }}
+
+                    </option>
+                  @endforeach
+            </select>
+          </div>
+
         {{-- Botones --}}
         <div class="col-md-2 d-grid">
           <button class="btn btn-primary" type="submit">Filtrar</button>
